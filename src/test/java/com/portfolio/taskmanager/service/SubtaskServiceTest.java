@@ -5,6 +5,8 @@ import com.portfolio.taskmanager.dto.request.SubtaskUpdateRequest;
 import com.portfolio.taskmanager.dto.response.SubtaskResponse;
 import com.portfolio.taskmanager.entity.Subtask;
 import com.portfolio.taskmanager.entity.Task;
+import com.portfolio.taskmanager.entity.enums.TaskStatus;
+import com.portfolio.taskmanager.exception.BadRequestException;
 import com.portfolio.taskmanager.exception.ResourceNotFoundException;
 import com.portfolio.taskmanager.mapper.SubtaskMapper;
 import com.portfolio.taskmanager.repository.SubtaskRepository;
@@ -132,6 +134,29 @@ class SubtaskServiceTest {
         subtaskService.deleteSubtask(10L);
 
         verify(subtaskRepository).delete(sampleSubtask);
+    }
+
+    @Test
+    @DisplayName("toggleSubtask - Bị chặn khi Task chính đã DONE (ném BadRequestException)")
+    void toggleSubtask_WhenTaskIsDone_ThrowsBadRequestException() {
+        sampleTask.setStatus(TaskStatus.DONE);
+        when(subtaskRepository.findById(10L)).thenReturn(Optional.of(sampleSubtask));
+
+        assertThatThrownBy(() -> subtaskService.toggleSubtask(10L))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Không thể thay đổi trạng thái công việc con khi công việc chính đã hoàn thành (DONE)");
+    }
+
+    @Test
+    @DisplayName("createSubtask - Bị chặn khi Task chính đã DONE (ném BadRequestException)")
+    void createSubtask_WhenTaskIsDone_ThrowsBadRequestException() {
+        sampleTask.setStatus(TaskStatus.DONE);
+        SubtaskCreateRequest request = SubtaskCreateRequest.builder().title("Subtask thêm vào task đã xong").build();
+        when(taskRepository.findById(1L)).thenReturn(Optional.of(sampleTask));
+
+        assertThatThrownBy(() -> subtaskService.createSubtask(1L, request))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Không thể thêm công việc con vào công việc đã hoàn thành (DONE)");
     }
 }
 

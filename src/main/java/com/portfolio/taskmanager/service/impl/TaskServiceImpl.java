@@ -55,9 +55,14 @@ public class TaskServiceImpl implements TaskService {
     @Override
     public TaskResponse createTask(TaskCreateRequest request) {
         Project project;
+        Optional<User> currentUserOpt = securityUtils.getCurrentUser();
         if (request.getProjectId() != null) {
             project = projectRepository.findById(request.getProjectId())
                     .orElseThrow(() -> new ResourceNotFoundException("Dự án", "id", request.getProjectId()));
+        } else if (currentUserOpt.isPresent() && currentUserOpt.get().getRole() == UserRole.CLIENT) {
+            project = projectRepository.findByClientId(currentUserOpt.get().getId()).stream()
+                    .findFirst()
+                    .orElseThrow(() -> new BadRequestException("Khách hàng chưa có dự án nào được gán để tạo công việc"));
         } else {
             project = projectRepository.findAll().stream()
                     .findFirst()
@@ -76,7 +81,6 @@ public class TaskServiceImpl implements TaskService {
                 .project(project)
                 .build();
 
-        Optional<User> currentUserOpt = securityUtils.getCurrentUser();
         if (currentUserOpt.isPresent()) {
             User currentUser = currentUserOpt.get();
             task.setCreator(currentUser);
@@ -265,6 +269,11 @@ public class TaskServiceImpl implements TaskService {
             if (!StringUtils.hasText(task.getCompletionNote())) {
                 throw new BadRequestException("Không thể chuyển trạng thái sang HOÀN TẤT khi chưa nộp minh chứng công việc. Vui lòng sử dụng chức năng nộp minh chứng hoàn thành.");
             }
+        } else if (request.getStatus() != TaskStatus.DONE && task.getStatus() == TaskStatus.DONE) {
+            task.setCompletedAt(null);
+            task.setCompletedBy(null);
+            task.setCompletionNote(null);
+            task.setProofUrl(null);
         }
 
         task.setTitle(request.getTitle().trim());
@@ -390,11 +399,21 @@ public class TaskServiceImpl implements TaskService {
             task.markAsCompleted();
         } else if (status == TaskStatus.REWORK) {
             task.setStatus(TaskStatus.REWORK);
+            task.setCompletedAt(null);
+            task.setCompletedBy(null);
+            task.setCompletionNote(null);
+            task.setProofUrl(null);
             if (StringUtils.hasText(reworkNote)) {
                 task.setReworkNote(reworkNote.trim());
             }
         } else {
             task.setStatus(status);
+            if (task.getCompletedAt() != null) {
+                task.setCompletedAt(null);
+                task.setCompletedBy(null);
+                task.setCompletionNote(null);
+                task.setProofUrl(null);
+            }
         }
 
         Task saved = taskRepository.save(task);
@@ -437,9 +456,14 @@ public class TaskServiceImpl implements TaskService {
         NaturalLanguageTaskParser.ParsedTaskResult parsed = naturalLanguageTaskParser.parse(request.getText());
 
         Project project;
+        Optional<User> currentUserOpt = securityUtils.getCurrentUser();
         if (request.getProjectId() != null) {
             project = projectRepository.findById(request.getProjectId())
                     .orElseThrow(() -> new ResourceNotFoundException("Dự án", "id", request.getProjectId()));
+        } else if (currentUserOpt.isPresent() && currentUserOpt.get().getRole() == UserRole.CLIENT) {
+            project = projectRepository.findByClientId(currentUserOpt.get().getId()).stream()
+                    .findFirst()
+                    .orElseThrow(() -> new BadRequestException("Khách hàng chưa có dự án nào được gán để tạo công việc"));
         } else {
             project = projectRepository.findAll().stream()
                     .findFirst()
@@ -458,7 +482,6 @@ public class TaskServiceImpl implements TaskService {
                 .project(project)
                 .build();
 
-        Optional<User> currentUserOpt = securityUtils.getCurrentUser();
         if (currentUserOpt.isPresent()) {
             User currentUser = currentUserOpt.get();
             task.setCreator(currentUser);

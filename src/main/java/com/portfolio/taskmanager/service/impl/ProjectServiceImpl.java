@@ -100,8 +100,10 @@ public class ProjectServiceImpl implements ProjectService {
                 .orElseThrow(() -> new ResourceNotFoundException("Dự án", "id", id));
 
         long inProgressCount = taskRepository.countByProjectIdAndStatus(id, TaskStatus.IN_PROGRESS);
-        if (inProgressCount > 0) {
-            throw new BadRequestException("Không thể xóa dự án khi vẫn còn " + inProgressCount + " công việc đang thực hiện dở dang (IN_PROGRESS). Vui lòng hoàn thành hoặc hủy các công việc này trước khi xóa.");
+        long reworkCount = taskRepository.countByProjectIdAndStatus(id, TaskStatus.REWORK);
+        long activeCount = inProgressCount + reworkCount;
+        if (activeCount > 0) {
+            throw new BadRequestException("Không thể xóa dự án khi vẫn còn " + activeCount + " công việc đang thực hiện dở dang hoặc cần sửa lỗi (IN_PROGRESS, REWORK). Vui lòng hoàn thành hoặc hủy các công việc này trước khi xóa.");
         }
 
         projectRepository.delete(project);

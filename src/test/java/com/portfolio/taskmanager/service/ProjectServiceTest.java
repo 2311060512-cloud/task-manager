@@ -203,4 +203,16 @@ class ProjectServiceTest {
                 .isInstanceOf(BadRequestException.class)
                 .hasMessageContaining("công việc đang thực hiện dở dang");
     }
+
+    @Test
+    @DisplayName("deleteProject - Bị chặn khi vẫn còn công việc REWORK đang sửa lỗi")
+    void deleteProject_WithReworkTasks_ThrowsBadRequestException() {
+        when(projectRepository.findById(1L)).thenReturn(Optional.of(sampleProject));
+        when(taskRepository.countByProjectIdAndStatus(1L, TaskStatus.IN_PROGRESS)).thenReturn(0L);
+        when(taskRepository.countByProjectIdAndStatus(1L, TaskStatus.REWORK)).thenReturn(1L);
+
+        assertThatThrownBy(() -> projectService.deleteProject(1L))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("công việc đang thực hiện dở dang hoặc cần sửa lỗi");
+    }
 }

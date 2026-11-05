@@ -68,7 +68,11 @@ public class AuthServiceImpl implements AuthService {
             throw new BadRequestException("Email '" + email + "' đã được sử dụng");
         }
 
-        UserRole role = request.getRole() != null ? request.getRole() : UserRole.CLIENT;
+        if (request.getRole() != null && request.getRole() != UserRole.CLIENT) {
+            throw new BadRequestException("Đăng ký tài khoản công khai chỉ áp dụng cho vai trò Khách hàng (CLIENT)");
+        }
+
+        UserRole role = UserRole.CLIENT;
 
         User user = User.builder()
                 .username(username)

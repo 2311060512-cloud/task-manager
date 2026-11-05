@@ -180,6 +180,25 @@ class AuthServiceTest {
     }
 
     @Test
+    @DisplayName("register - Cố tình leo quyền đăng ký ADMIN/EMPLOYEE bị chặn BadRequestException")
+    void register_WithPrivilegeEscalation_ThrowsBadRequestException() {
+        RegisterRequest request = RegisterRequest.builder()
+                .username("hacker_admin")
+                .password("secret123")
+                .fullName("Hacker Admin")
+                .email("hacker@security.com")
+                .role(UserRole.ADMIN)
+                .build();
+
+        when(userRepository.existsByUsername("hacker_admin")).thenReturn(false);
+        when(userRepository.existsByEmail("hacker@security.com")).thenReturn(false);
+
+        assertThatThrownBy(() -> authService.register(request))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Đăng ký tài khoản công khai chỉ áp dụng cho vai trò Khách hàng (CLIENT)");
+    }
+
+    @Test
     @DisplayName("getCurrentUser - Tìm thấy user trả về UserResponse")
     void getCurrentUser_Success() {
         when(userRepository.findByUsername("admin")).thenReturn(Optional.of(sampleUser));
