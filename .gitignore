@@ -13,10 +13,11 @@ target/
 .sts4-cache
 
 ### IntelliJ IDEA ###
-.idea
+.idea/
 *.iws
 *.iml
 *.ipr
+out/
 
 ### NetBeans ###
 /nbproject/private/
@@ -28,9 +29,28 @@ target/
 
 ### VS Code ###
 .vscode/
+*.code-workspace
 
-### OS / Logs ###
+### OS / Logs / Crash ###
 *.log
+logs/
 .DS_Store
 Thumbs.db
+desktop.ini
+
+### Environment & Secrets (Bảo mật thông tin) ###
+.env
+.env.*
+!.env.example
+*.local
+*.key
+*.pem
+*.p12
+*.jks
+*.crt
+credentials.json
+secrets/
+application-local.yml
+application-local.properties
+
 
