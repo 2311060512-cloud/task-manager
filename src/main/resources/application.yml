@@ -1,0 +1,38 @@
+spring:
+  application:
+    name: task-manager
+  profiles:
+    active: dev
+
+server:
+  port: 8080
+  servlet:
+    context-path: /
+    encoding:
+      charset: UTF-8
+      force: true
+      enabled: true
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+    display-request-duration: true
+
+jwt:
+  # Secret được truyền qua biến môi trường JWT_SECRET, không để cố định tại đây
+  secret: ${JWT_SECRET:}
+  # Cấu hình thời hạn access token (15 phút = 900000 ms)
+  access-token-expiration-ms: 900000
+  # Giữ expiration-ms để tương thích ngược với code cũ
+  expiration-ms: 900000
+  # Cấu hình thời hạn refresh token (7 ngày = 604800000 ms)
+  refresh-token-expiration-ms: 604800000
+
+security:
+  login-rate-limit:
+    max-attempts: 5
+    window-seconds: 60

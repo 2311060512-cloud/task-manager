@@ -1,0 +1,68 @@
+package com.portfolio.taskmanager.service.impl;
+
+import com.portfolio.taskmanager.dto.request.SubtaskCreateRequest;
+import com.portfolio.taskmanager.dto.request.SubtaskUpdateRequest;
+import com.portfolio.taskmanager.dto.response.SubtaskResponse;
+import com.portfolio.taskmanager.entity.Subtask;
+import com.portfolio.taskmanager.entity.Task;
+import com.portfolio.taskmanager.exception.ResourceNotFoundException;
+import com.portfolio.taskmanager.mapper.SubtaskMapper;
+import com.portfolio.taskmanager.repository.SubtaskRepository;
+import com.portfolio.taskmanager.repository.TaskRepository;
+import com.portfolio.taskmanager.service.SubtaskService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+@RequiredArgsConstructor
+@Transactional
+public class SubtaskServiceImpl implements SubtaskService {
+
+    private final SubtaskRepository subtaskRepository;
+    private final TaskRepository taskRepository;
+    private final SubtaskMapper subtaskMapper;
+
+    @Override
+    public SubtaskResponse createSubtask(Long taskId, SubtaskCreateRequest request) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new ResourceNotFoundException("Công việc", "id", taskId));
+
+        Subtask subtask = Subtask.builder()
+                .title(request.getTitle().trim())
+                .completed(false)
+                .task(task)
+                .build();
+
+        Subtask saved = subtaskRepository.save(subtask);
+        return subtaskMapper.toResponse(saved);
+    }
+
+    @Override
+    public SubtaskResponse toggleSubtask(Long subtaskId) {
+        Subtask subtask = subtaskRepository.findById(subtaskId)
+                .orElseThrow(() -> new ResourceNotFoundException("Công việc con", "id", subtaskId));
+
+        subtask.setCompleted(!subtask.isCompleted());
+        Subtask updated = subtaskRepository.save(subtask);
+        return subtaskMapper.toResponse(updated);
+    }
+
+    @Override
+    public SubtaskResponse updateSubtask(Long subtaskId, SubtaskUpdateRequest request) {
+        Subtask subtask = subtaskRepository.findById(subtaskId)
+                .orElseThrow(() -> new ResourceNotFoundException("Công việc con", "id", subtaskId));
+
+        subtask.setTitle(request.getTitle().trim());
+        Subtask updated = subtaskRepository.save(subtask);
+        return subtaskMapper.toResponse(updated);
+    }
+
+    @Override
+    public void deleteSubtask(Long subtaskId) {
+        Subtask subtask = subtaskRepository.findById(subtaskId)
+                .orElseThrow(() -> new ResourceNotFoundException("Công việc con", "id", subtaskId));
+        subtaskRepository.delete(subtask);
+    }
+}
+

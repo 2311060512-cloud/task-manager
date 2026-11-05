@@ -1,0 +1,2335 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TaskFlow - Quản Lý Dự Án & Công Việc</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+        /* Tinh chỉnh thanh cuộn mảnh, mượt mà */
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .kanban-drag-over { background-color: rgba(239, 246, 255, 0.9) !important; border-color: #60a5fa !important; border-style: dashed !important; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col antialiased">
+
+    <!-- Top Navigation Bar (Sleek Minimalist Header) -->
+    <header class="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-15 py-3 flex items-center justify-between">
+            
+            <!-- Brand & Navigation Links -->
+            <div class="flex items-center space-x-6">
+                <div class="flex items-center space-x-2.5 cursor-pointer" onclick="switchTab('tasksTab')">
+                    <div class="w-8 h-8 rounded-lg bg-slate-900 flex items-center justify-center text-white font-bold text-sm shadow-sm">
+                        <i class="fa-solid fa-layer-group text-xs"></i>
+                    </div>
+                    <div class="flex items-baseline space-x-1.5">
+                        <span class="text-base font-bold text-slate-900 tracking-tight">TaskFlow</span>
+                        <span class="text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">v1.2</span>
+                    </div>
+                </div>
+
+                <!-- Navigation Tabs -->
+                <nav class="hidden md:flex items-center space-x-1 text-xs font-semibold">
+                    <button id="navTabTasks" onclick="switchTab('tasksTab')" class="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-900 transition">
+                        <i class="fa-solid fa-table-columns mr-1.5 text-slate-500"></i> Bảng Kanban
+                    </button>
+                    <button id="navTabStats" onclick="switchTab('statsTab')" class="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition">
+                        <i class="fa-solid fa-chart-pie mr-1.5 text-slate-400"></i> Thống kê
+                    </button>
+                    <button id="navTabPriority" onclick="switchTab('priorityTab')" class="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition">
+                        <i class="fa-solid fa-arrow-down-short-wide mr-1.5 text-slate-400"></i> Ưu tiên thông minh
+                    </button>
+                    <button id="navTabProjects" onclick="switchTab('projectsTab')" class="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition">
+                        <i class="fa-regular fa-folder mr-1.5 text-slate-400"></i> Dự án
+                    </button>
+                </nav>
+            </div>
+
+            <!-- Header Actions & Account Menu -->
+            <div class="flex items-center space-x-2.5">
+                
+                <a href="/swagger-ui.html" target="_blank" class="hidden sm:inline-flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-transparent hover:border-slate-200 transition" title="Tài liệu API Swagger OpenAPI">
+                    <i class="fa-solid fa-code text-slate-400"></i>
+                    <span>Swagger UI</span>
+                </a>
+
+                <!-- Create Actions -->
+                <div class="flex items-center space-x-1.5">
+                    <button id="btnNewProject" onclick="openModal('projectModal')" class="inline-flex items-center space-x-1 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 transition">
+                        <i class="fa-solid fa-folder-plus text-slate-400 text-xs"></i>
+                        <span>+ Dự án</span>
+                    </button>
+                    <button onclick="openModal('taskModal')" class="inline-flex items-center space-x-1 px-3.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-xs font-semibold text-white shadow-sm transition">
+                        <i class="fa-solid fa-plus text-xs"></i>
+                        <span>Tạo việc</span>
+                    </button>
+                </div>
+
+                <div class="h-4 w-px bg-slate-200 hidden sm:block"></div>
+
+                <!-- Auth State Controllers -->
+                <div id="authLoggedInGroup" class="flex items-center space-x-2">
+                    <!-- User Profile Dropdown (Click-to-Toggle, Gọn Gàng) -->
+                    <div class="relative">
+                        <button id="userDropdownBtn" onclick="toggleUserDropdown(event)" class="flex items-center space-x-2 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-xs font-medium text-slate-700 transition">
+                            <span id="roleBadge" class="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-100 text-slate-700">ADMIN</span>
+                            <span id="userFullName" class="font-semibold text-slate-900 max-w-[200px] truncate">Admin</span>
+                            <i id="userDropdownChevron" class="fa-solid fa-angle-down text-[10px] text-slate-400 transition-transform duration-200"></i>
+                        </button>
+
+                        <!-- Dropdown Menu (Chỉ hiện các tác vụ cần thiết, đóng mở mượt mà) -->
+                        <div id="userDropdownMenu" class="absolute right-0 mt-1.5 w-56 bg-white border border-slate-200 rounded-xl shadow-lg py-1 hidden z-50 text-xs">
+                            <!-- User Info Header -->
+                            <div class="px-3.5 py-2.5 border-b border-slate-100 bg-slate-50/50 rounded-t-xl">
+                                <p id="dropdownUserName" class="font-semibold text-slate-900 truncate text-xs">Admin</p>
+                                <p id="dropdownUserEmail" class="text-slate-500 text-[11px] truncate">admin@taskmanager.com</p>
+                            </div>
+
+                            <!-- Menu Actions -->
+                            <div class="py-1">
+                                <button onclick="setMyTasksFilter(true); closeUserDropdown();" class="w-full text-left px-3.5 py-2 hover:bg-slate-50 flex items-center space-x-2 text-slate-700">
+                                    <i class="fa-regular fa-user text-slate-400 text-xs w-4"></i>
+                                    <span>Việc của tôi</span>
+                                </button>
+                                <button onclick="openAuthModal('login'); closeUserDropdown();" class="w-full text-left px-3.5 py-2 hover:bg-slate-50 flex items-center space-x-2 text-slate-700">
+                                    <i class="fa-solid fa-arrow-right-to-bracket text-slate-400 text-xs w-4"></i>
+                                    <span>Đổi tài khoản...</span>
+                                </button>
+                            </div>
+
+                            <!-- Sign Out -->
+                            <div class="border-t border-slate-100 pt-1">
+                                <button onclick="logout(); closeUserDropdown();" class="w-full text-left px-3.5 py-2 hover:bg-rose-50 flex items-center space-x-2 text-rose-600 font-semibold">
+                                    <i class="fa-solid fa-power-off text-rose-500 text-xs w-4"></i>
+                                    <span>Đăng xuất</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Logged Out State -->
+                <div id="authLoggedOutGroup" class="hidden items-center space-x-1.5">
+                    <button onclick="openAuthModal('login')" class="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-xs font-semibold text-white transition">
+                        Đăng nhập
+                    </button>
+                    <button onclick="openAuthModal('register')" class="px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-xs font-semibold text-slate-700 transition">
+                        Đăng ký
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Workspace Container -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex-1 w-full space-y-5">
+
+        <!-- ================= TAB 1: KANBAN WORKSPACE (Chuyên biệt quản lý công việc) ================= -->
+        <section id="tasksTab" class="space-y-4">
+            
+            <!-- Filters Toolbar (Hiện đại, phân tầng rõ ràng, chống đè chéo, hỗ trợ sắp xếp & kéo thả) -->
+            <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs space-y-2.5 text-xs">
+                
+                <!-- Top Row: View Mode + Search Input + Sort Selection + Quick NLP Trigger -->
+                <div class="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5">
+                    
+                    <!-- Left: View Toggle & Role Indicator -->
+                    <div class="flex items-center gap-2 shrink-0">
+                        <!-- Segmented View Toggle (Dành riêng cho Admin) -->
+                        <div id="segmentedViewToggle" class="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-0.5">
+                            <button id="btnViewAllTasks" onclick="setMyTasksFilter(false)" class="h-7 px-2.5 rounded-md text-xs font-semibold bg-white text-slate-900 shadow-2xs transition">
+                                Tất cả việc
+                            </button>
+                            <button id="btnViewMyTasks" onclick="setMyTasksFilter(true)" class="h-7 px-2.5 rounded-md text-xs font-semibold text-slate-600 hover:text-slate-900 transition flex items-center space-x-1">
+                                <i class="fa-regular fa-user text-[10px]"></i>
+                                <span>Việc của tôi</span>
+                            </button>
+                        </div>
+
+                        <!-- Badge Việc của tôi cố định (Dành cho Nhân viên) -->
+                        <div id="employeeRoleBadge" class="hidden items-center space-x-1.5 h-8 px-2.5 rounded-lg bg-blue-50 text-blue-700 font-semibold text-xs border border-blue-200 shrink-0">
+                            <i class="fa-regular fa-user text-[11px]"></i>
+                            <span>Việc của tôi</span>
+                        </div>
+                    </div>
+
+                    <!-- Middle: Search Input (Rộng rãi, co giãn tốt, không bao giờ bị đè) -->
+                    <div class="relative flex-1 min-w-[200px]">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                        <input id="filterKeyword" oninput="debounceFilter()" type="text" placeholder="Tìm tiêu đề, mô tả công việc..." 
+                               class="w-full h-8 pl-8 pr-3 rounded-lg border border-slate-200 text-xs outline-none focus:border-slate-400 bg-slate-50/70 focus:bg-white transition placeholder:text-slate-400">
+                    </div>
+
+                    <!-- Right: Sort Option & NLP Quick Create Trigger -->
+                    <div class="flex items-center space-x-1.5 shrink-0">
+                        <span class="text-slate-400 font-medium hidden md:inline text-[11px]">Sắp xếp:</span>
+                        <select id="filterSort" onchange="loadTasks()" class="h-8 px-2.5 rounded-lg border border-slate-200 bg-slate-50/70 hover:bg-slate-50 text-slate-700 outline-none text-xs font-medium cursor-pointer transition">
+                            <option value="dueDate_ASC" selected>📅 Hạn chót: Gần nhất trước</option>
+                            <option value="dueDate_DESC">📅 Hạn chót: Xa nhất trước</option>
+                            <option value="priority_DESC">🎯 Mức ưu tiên: Cao nhất trước</option>
+                            <option value="createdAt_DESC">⏱️ Mới tạo gần đây</option>
+                            <option value="title_ASC">🔤 Tên: A → Z</option>
+                        </select>
+                        <button type="button" onclick="openModal('taskModal'); switchTaskModalTab('nlp');" class="h-8 px-2.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium transition flex items-center space-x-1" title="Tạo việc nhanh bằng NLP">
+                            <i class="fa-solid fa-bolt text-amber-500 text-[11px]"></i>
+                            <span class="hidden sm:inline">NLP</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Bottom Row: Filter Dropdowns & Reset Button -->
+                <div class="flex items-center justify-between gap-2 pt-2 border-t border-slate-100 flex-wrap">
+                    <div class="flex items-center gap-1.5 flex-wrap flex-1">
+                        <span class="text-slate-400 font-medium flex items-center space-x-1 mr-1 text-[11px]">
+                            <i class="fa-solid fa-filter text-[10px]"></i>
+                            <span>Bộ lọc:</span>
+                        </span>
+
+                        <!-- Lọc theo dự án -->
+                        <select id="filterProject" onchange="loadTasks()" class="h-8 max-w-[170px] px-2 rounded-lg border border-slate-200 bg-slate-50/70 hover:bg-slate-50 text-slate-700 outline-none text-xs font-medium cursor-pointer transition truncate">
+                            <option value="">Tất cả dự án</option>
+                        </select>
+
+                        <!-- Lọc việc của từng người (Assignee - Chỉ Admin) -->
+                        <select id="filterAssignee" onchange="handleAssigneeFilterChange()" class="h-8 max-w-[180px] px-2 rounded-lg border border-slate-200 bg-slate-50/70 hover:bg-slate-50 text-slate-700 outline-none text-xs font-medium cursor-pointer transition truncate">
+                            <option value="">Tất cả nhân sự</option>
+                            <option value="-1">Chưa phân công</option>
+                        </select>
+
+                        <!-- Lọc theo mốc thời gian -->
+                        <select id="filterTimeRange" onchange="loadTasks()" class="h-8 px-2 rounded-lg border border-slate-200 bg-slate-50/70 hover:bg-slate-50 text-slate-700 outline-none text-xs font-medium cursor-pointer transition">
+                            <option value="">Tất cả thời gian</option>
+                            <option value="24h">⏱️ 24 giờ qua</option>
+                            <option value="3d">📅 3 ngày qua</option>
+                            <option value="7d">📅 7 ngày qua</option>
+                            <option value="30d">🗓️ 30 ngày qua</option>
+                        </select>
+
+                        <!-- Mức ưu tiên -->
+                        <select id="filterPriority" onchange="loadTasks()" class="h-8 px-2 rounded-lg border border-slate-200 bg-slate-50/70 hover:bg-slate-50 text-slate-700 outline-none text-xs font-medium cursor-pointer transition">
+                            <option value="">Tất cả ưu tiên</option>
+                            <option value="URGENT">Khẩn cấp</option>
+                            <option value="HIGH">Cao</option>
+                            <option value="MEDIUM">Trung bình</option>
+                            <option value="LOW">Thấp</option>
+                        </select>
+
+                        <!-- Trạng thái -->
+                        <select id="filterStatus" onchange="loadTasks()" class="h-8 px-2 rounded-lg border border-slate-200 bg-slate-50/70 hover:bg-slate-50 text-slate-700 outline-none text-xs font-medium cursor-pointer transition">
+                            <option value="">Tất cả trạng thái</option>
+                            <option value="TODO">Cần làm</option>
+                            <option value="IN_PROGRESS">Đang làm</option>
+                            <option value="REWORK">Cần sửa lại (REWORK)</option>
+                            <option value="DONE">Đã xong</option>
+                        </select>
+                    </div>
+
+                    <!-- Nút Reset -->
+                    <button onclick="resetFilters()" class="h-8 px-3 rounded-lg border border-slate-200 bg-slate-50/70 hover:bg-slate-100 text-slate-600 hover:text-slate-900 flex items-center space-x-1.5 shrink-0 transition font-medium" title="Đặt lại bộ lọc về mặc định">
+                        <i class="fa-solid fa-rotate-left text-xs"></i>
+                        <span>Đặt lại</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Kanban Board (4 Columns - Hỗ trợ Kéo Thả Drag & Drop và Cột REWORK Sửa Lại) -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5 items-start">
+                
+                <!-- Column 1: TODO -->
+                <div class="bg-slate-100/70 p-3 rounded-xl border border-slate-200 flex flex-col space-y-2.5">
+                    <div class="flex items-center justify-between pb-1">
+                        <div class="flex items-center space-x-2">
+                            <span class="w-2 h-2 rounded-full bg-slate-400"></span>
+                            <h3 class="font-semibold text-xs text-slate-700 uppercase tracking-wider">Cần làm (TODO)</h3>
+                        </div>
+                        <span id="countTodo" class="px-2 py-0.5 rounded-md text-[11px] font-bold bg-white text-slate-600 border border-slate-200 shadow-2xs">0</span>
+                    </div>
+                    <div id="columnTodo" 
+                         ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'TODO')"
+                         class="kanban-column-zone space-y-2.5 flex-1 min-h-[380px] max-h-[calc(100vh-210px)] overflow-y-auto pr-1 rounded-lg border-2 border-transparent transition">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Column 2: IN_PROGRESS -->
+                <div class="bg-slate-100/70 p-3 rounded-xl border border-slate-200 flex flex-col space-y-2.5">
+                    <div class="flex items-center justify-between pb-1">
+                        <div class="flex items-center space-x-2">
+                            <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                            <h3 class="font-semibold text-xs text-slate-700 uppercase tracking-wider">Đang làm (IN PROGRESS)</h3>
+                        </div>
+                        <span id="countInProgress" class="px-2 py-0.5 rounded-md text-[11px] font-bold bg-white text-slate-600 border border-slate-200 shadow-2xs">0</span>
+                    </div>
+                    <div id="columnInProgress" 
+                         ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'IN_PROGRESS')"
+                         class="kanban-column-zone space-y-2.5 flex-1 min-h-[380px] max-h-[calc(100vh-210px)] overflow-y-auto pr-1 rounded-lg border-2 border-transparent transition">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Column 3: REWORK (MỚI: CẦN SỬA LẠI KHI KHÁCH/TESTER BÁO LỖI) -->
+                <div class="bg-amber-50/40 p-3 rounded-xl border border-amber-200/80 flex flex-col space-y-2.5">
+                    <div class="flex items-center justify-between pb-1">
+                        <div class="flex items-center space-x-2">
+                            <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                            <h3 class="font-semibold text-xs text-amber-800 uppercase tracking-wider">Cần sửa lại (REWORK)</h3>
+                        </div>
+                        <span id="countRework" class="px-2 py-0.5 rounded-md text-[11px] font-bold bg-white text-amber-700 border border-amber-200 shadow-2xs">0</span>
+                    </div>
+                    <div id="columnRework" 
+                         ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'REWORK')"
+                         class="kanban-column-zone space-y-2.5 flex-1 min-h-[380px] max-h-[calc(100vh-210px)] overflow-y-auto pr-1 rounded-lg border-2 border-transparent transition">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Column 4: DONE -->
+                <div class="bg-emerald-50/30 p-3 rounded-xl border border-emerald-200/70 flex flex-col space-y-2.5">
+                    <div class="flex items-center justify-between pb-1">
+                        <div class="flex items-center space-x-2">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                            <h3 class="font-semibold text-xs text-emerald-800 uppercase tracking-wider">Đã xong (DONE)</h3>
+                        </div>
+                        <span id="countDone" class="px-2 py-0.5 rounded-md text-[11px] font-bold bg-white text-emerald-700 border border-emerald-200 shadow-2xs">0</span>
+                    </div>
+                    <div id="columnDone" 
+                         ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'DONE')"
+                         class="kanban-column-zone space-y-2.5 flex-1 min-h-[380px] max-h-[calc(100vh-210px)] overflow-y-auto pr-1 rounded-lg border-2 border-transparent transition">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ================= TAB 2: THỐNG KÊ & BÁO CÁO (Chuyên biệt theo dõi KPI & Số liệu) ================= -->
+        <section id="statsTab" class="hidden space-y-5">
+            <!-- Header & Role Context -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-700 text-lg">
+                        <i class="fa-solid fa-chart-pie"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-sm font-bold text-slate-900">Báo Cáo Thống Kê & Vận Hành Hệ Thống</h2>
+                        <div class="flex items-center space-x-2 text-xs text-slate-500 mt-0.5">
+                            <span id="roleAlertTitle" class="font-semibold text-slate-700">Quản Trị Viên (ADMIN)</span>
+                            <span id="roleAlertDesc">• Toàn quyền quản trị hệ thống, phân công nhân sự và quản lý dự án.</span>
+                            <span id="roleStatusDot" class="w-1.5 h-1.5 rounded-full bg-slate-900"></span>
+                            <span id="roleModeTag" class="text-slate-600 font-medium">Toàn quyền Admin</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-2 shrink-0">
+                    <button onclick="loadStats()" class="px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-xs font-semibold text-slate-700 transition flex items-center space-x-1.5 shadow-2xs">
+                        <i class="fa-solid fa-rotate text-[11px] text-slate-500"></i>
+                        <span>Làm mới số liệu</span>
+                    </button>
+                    <button onclick="switchTab('tasksTab')" class="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold transition flex items-center space-x-1.5 shadow-2xs">
+                        <i class="fa-solid fa-table-columns text-[11px]"></i>
+                        <span>Mở Bảng Kanban</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Metrics Overview (Clean Minimal Cards) -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+                    <div class="text-xs font-medium text-slate-500">Dự án hoạt động</div>
+                    <div class="mt-1 flex items-baseline justify-between">
+                        <div id="statTotalProjects" class="text-2xl font-bold text-slate-900">0</div>
+                        <span class="text-[11px] text-slate-400 font-medium">dự án</span>
+                    </div>
+                </div>
+                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+                    <div class="text-xs font-medium text-slate-500">Tổng công việc</div>
+                    <div class="mt-1 flex items-baseline justify-between">
+                        <div id="statTotalTasks" class="text-2xl font-bold text-slate-900">0</div>
+                        <span class="text-[11px] text-slate-400 font-medium">đầu việc</span>
+                    </div>
+                </div>
+                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+                    <div class="text-xs font-medium text-slate-500">Công việc quá hạn</div>
+                    <div class="mt-1 flex items-baseline justify-between">
+                        <div id="statOverdueTasks" class="text-2xl font-bold text-rose-600">0</div>
+                        <span class="text-[11px] text-rose-500 font-medium">cần xử lý ngay</span>
+                    </div>
+                </div>
+                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+                    <div class="text-xs font-medium text-slate-500">Tiến độ hoàn thành</div>
+                    <div class="mt-1 flex items-baseline justify-between">
+                        <div id="statCompletionRate" class="text-2xl font-bold text-slate-900">0%</div>
+                        <span class="text-[11px] text-slate-400 font-medium">toàn hệ thống</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Phân Bổ Công Việc Theo 4 Trạng Thái (Bao gồm Cột REWORK Mới) -->
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs space-y-3">
+                <h3 class="text-xs font-bold text-slate-800 uppercase tracking-wider">Phân bổ công việc theo trạng thái</h3>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div class="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                        <div class="text-[11px] font-medium text-slate-500 flex items-center space-x-1.5">
+                            <span class="w-2 h-2 rounded-full bg-slate-400"></span>
+                            <span>Cần làm (TODO)</span>
+                        </div>
+                        <div id="statCountTodo" class="text-xl font-bold text-slate-800 mt-1">0</div>
+                    </div>
+                    <div class="p-3 rounded-lg bg-blue-50/60 border border-blue-200">
+                        <div class="text-[11px] font-medium text-blue-700 flex items-center space-x-1.5">
+                            <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                            <span>Đang làm (IN PROGRESS)</span>
+                        </div>
+                        <div id="statCountInProgress" class="text-xl font-bold text-blue-800 mt-1">0</div>
+                    </div>
+                    <div class="p-3 rounded-lg bg-amber-50/70 border border-amber-300">
+                        <div class="text-[11px] font-medium text-amber-800 flex items-center space-x-1.5">
+                            <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                            <span>Cần sửa lại (REWORK)</span>
+                        </div>
+                        <div id="statCountRework" class="text-xl font-bold text-amber-800 mt-1">0</div>
+                    </div>
+                    <div class="p-3 rounded-lg bg-emerald-50/60 border border-emerald-200">
+                        <div class="text-[11px] font-medium text-emerald-700 flex items-center space-x-1.5">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                            <span>Đã xong (DONE)</span>
+                        </div>
+                        <div id="statCountDone" class="text-xl font-bold text-emerald-800 mt-1">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tiến độ chi tiết theo từng dự án -->
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs space-y-3">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xs font-bold text-slate-800 uppercase tracking-wider">Tiến độ chi tiết từng dự án</h3>
+                    <span class="text-[11px] text-slate-400">Cập nhật tự động</span>
+                </div>
+                <div id="statsProjectsContainer" class="space-y-2.5">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= TAB 2: SMART PRIORITY RANKING ================= -->
+        <section id="priorityTab" class="hidden space-y-4">
+            <div class="bg-white p-4 rounded-xl border border-slate-200">
+                <div class="flex items-center justify-between mb-2">
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-900">Thuật toán Xếp Hạng Ưu Tiên Thông Minh (Smart Priority)</h3>
+                        <p class="text-xs text-slate-500 mt-0.5">Hệ thống tính điểm tự động: Trọng số ưu tiên (URGENT +80, HIGH +50) + Điểm khẩn cấp (Quá hạn phạt cao nhất +105) + Điểm việc dở dang (+15)</p>
+                    </div>
+                    <button onclick="loadSmartPriority()" class="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition">
+                        <i class="fa-solid fa-arrows-rotate mr-1 text-slate-400"></i> Tính lại điểm
+                    </button>
+                </div>
+            </div>
+
+            <div id="priorityTasksContainer" class="space-y-2.5">
+                <!-- Populated by JS -->
+            </div>
+        </section>
+
+        <!-- ================= TAB 3: PROJECTS OVERVIEW ================= -->
+        <section id="projectsTab" class="hidden space-y-4">
+            <div class="bg-white p-4 rounded-xl border border-slate-200 flex items-center justify-between">
+                <div>
+                    <h3 class="text-sm font-bold text-slate-900">Danh Sách Dự Án Đang Quản Trị</h3>
+                    <p class="text-xs text-slate-500 mt-0.5">Khách hàng chỉ xem được dự án của mình; Nhân viên và Quản lý theo dõi tiến độ tổng thể</p>
+                </div>
+                <button id="btnNewProjectTab" onclick="openModal('projectModal')" class="px-3.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-xs font-semibold text-white transition flex items-center space-x-1">
+                    <i class="fa-solid fa-plus text-xs"></i>
+                    <span>Tạo dự án mới</span>
+                </button>
+            </div>
+
+            <div id="projectsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- Populated by JS -->
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="mt-auto border-t border-slate-200 bg-white py-4 text-center text-xs text-slate-400">
+        <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+            <div>TaskFlow • Quản Lý Dự Án & Công Việc (Spring Boot 3 & JWT RBAC)</div>
+            <div class="flex items-center space-x-3 text-slate-500">
+                <a href="/swagger-ui.html" target="_blank" class="hover:underline">OpenAPI Docs</a>
+                <span>•</span>
+                <a href="/h2-console" target="_blank" class="hover:underline">H2 Console</a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- ================= MODALS ================= -->
+
+    <!-- Modal Tạo Việc Mới (Hỗ trợ 2 Chế Độ: ⚡ Tạo Nhanh NLP & 📝 Điền Biểu Mẫu) -->
+    <div id="taskModal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-xl max-w-lg w-full p-5 space-y-3.5 border border-slate-200">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                <h3 class="text-sm font-bold text-slate-900">Tạo công việc mới</h3>
+                <button onclick="closeModal('taskModal')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <!-- Tab Switcher Trong Modal -->
+            <div class="flex border-b border-slate-100">
+                <button type="button" id="tabBtnNlp" onclick="switchTaskModalTab('nlp')" class="flex-1 pb-2 text-xs font-semibold text-slate-900 border-b-2 border-slate-900 flex items-center justify-center space-x-1.5 transition">
+                    <i class="fa-solid fa-bolt text-amber-500"></i>
+                    <span>⚡ Tạo nhanh bằng NLP</span>
+                </button>
+                <button type="button" id="tabBtnManual" onclick="switchTaskModalTab('manual')" class="flex-1 pb-2 text-xs font-semibold text-slate-500 hover:text-slate-800 border-b-2 border-transparent flex items-center justify-center space-x-1.5 transition">
+                    <i class="fa-solid fa-file-pen text-slate-400"></i>
+                    <span>📝 Điền form chi tiết</span>
+                </button>
+            </div>
+
+            <!-- Chế độ 1: Tạo việc nhanh NLP -->
+            <div id="taskModalNlpSection" class="space-y-3 text-xs">
+                <div class="p-3 rounded-xl bg-amber-50/70 border border-amber-200 text-slate-700 text-[11px] leading-relaxed">
+                    <p class="font-semibold text-amber-900 mb-0.5"><i class="fa-solid fa-lightbulb text-amber-500 mr-1"></i>Hệ thống tự động phân tích câu tự nhiên:</p>
+                    Tự động nhận diện tiêu đề, ngày giờ và mức độ ưu tiên (URGENT, HIGH, MEDIUM, LOW):
+                    <p class="font-mono text-slate-800 mt-1.5 bg-white p-1.5 rounded border border-amber-200 text-[10px]">"Họp triển khai dự án lúc 14:00 ngày mai mức độ URGENT"</p>
+                </div>
+                <div>
+                    <label class="block font-semibold mb-1 text-slate-700">Nội dung câu lệnh tự nhiên <span class="text-rose-500">*</span></label>
+                    <input id="quickTaskInput" type="text" 
+                           onkeydown="if(event.key === 'Enter') handleQuickCreate()"
+                           placeholder="Ví dụ: Kiểm tra bảo mật API lúc 10:00 ngày mai mức độ HIGH..." 
+                           class="w-full border border-slate-200 rounded-lg p-2.5 text-xs outline-none focus:border-slate-500">
+                </div>
+                <div>
+                    <label class="block font-semibold mb-1 text-slate-700">Dự án tiếp nhận <span class="text-rose-500">*</span></label>
+                    <select id="quickTaskProjectSelect" class="w-full border border-slate-200 rounded-lg p-2 text-xs outline-none bg-white">
+                        <!-- Populated by JS -->
+                    </select>
+                </div>
+                <div class="flex justify-end space-x-2 pt-3 border-t border-slate-100">
+                    <button type="button" onclick="closeModal('taskModal')" class="px-3.5 py-1.5 border border-slate-200 rounded-lg font-semibold text-slate-600 hover:bg-slate-50 transition">Hủy</button>
+                    <button type="button" onclick="handleQuickCreate()" class="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-semibold transition flex items-center space-x-1.5">
+                        <i class="fa-solid fa-bolt text-amber-400"></i>
+                        <span>Phân tích & Tạo việc ngay</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Chế độ 2: Điền biểu mẫu chi tiết -->
+            <form id="taskModalManualSection" onsubmit="handleCreateTask(event)" class="space-y-3 text-xs hidden">
+                <div>
+                    <label class="block font-semibold mb-1 text-slate-700">Tiêu đề công việc <span class="text-rose-500">*</span></label>
+                    <input id="taskTitle" type="text" required placeholder="Ví dụ: Thiết kế cơ sở dữ liệu..." class="w-full border border-slate-200 rounded-lg p-2 text-xs outline-none focus:border-slate-500">
+                </div>
+                <div>
+                    <label class="block font-semibold mb-1 text-slate-700">Mô tả chi tiết</label>
+                    <textarea id="taskDescription" rows="2" placeholder="Ghi chú yêu cầu..." class="w-full border border-slate-200 rounded-lg p-2 text-xs outline-none focus:border-slate-500"></textarea>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-semibold mb-1 text-slate-700">Thuộc dự án <span class="text-rose-500">*</span></label>
+                        <select id="taskProjectSelect" required class="w-full border border-slate-200 rounded-lg p-2 text-xs outline-none bg-white"></select>
+                    </div>
+                    <div>
+                        <label class="block font-semibold mb-1 text-slate-700">Mức độ ưu tiên</label>
+                        <select id="taskPriority" class="w-full border border-slate-200 rounded-lg p-2 text-xs outline-none bg-white">
+                            <option value="LOW">Thấp (LOW)</option>
+                            <option value="MEDIUM" selected>Trung bình (MEDIUM)</option>
+                            <option value="HIGH">Cao (HIGH)</option>
+                            <option value="URGENT">Khẩn cấp (URGENT)</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block font-semibold mb-1 text-slate-700">Hạn chót hoàn thành (Due Date)</label>
+                    <input id="taskDueDate" type="datetime-local" class="w-full border border-slate-200 rounded-lg p-2 text-xs outline-none">
+                </div>
+                <div>
+                    <label class="block font-semibold mb-1 text-slate-700">Công việc con ban đầu (mỗi dòng 1 subtask)</label>
+                    <textarea id="taskSubtasks" rows="2" placeholder="Tạo bảng Users&#10;Viết Unit test" class="w-full border border-slate-200 rounded-lg p-2 text-xs outline-none"></textarea>
+                </div>
+                <div class="flex justify-end space-x-2 pt-3 border-t border-slate-100">
+                    <button type="button" onclick="closeModal('taskModal')" class="px-3.5 py-1.5 border border-slate-200 rounded-lg font-semibold text-slate-600 hover:bg-slate-50 transition">Hủy</button>
+                    <button type="submit" class="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-semibold transition">Tạo ngay</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Yêu Cầu Sửa Lại (REWORK - Khi Tester hoặc Khách Hàng Phát Hiện Lỗi) -->
+    <div id="reworkModal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-5 space-y-4 border border-slate-200">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div class="flex items-center space-x-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></span>
+                    <h3 class="text-sm font-bold text-slate-900">Yêu cầu sửa lại (REWORK)</h3>
+                </div>
+                <button onclick="closeModal('reworkModal')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="text-xs space-y-3">
+                <div>
+                    <span class="text-slate-500 text-[11px]">Công việc nghiệm thu:</span>
+                    <p id="reworkTaskTitle" class="font-bold text-slate-900 text-xs mt-0.5"></p>
+                </div>
+                <div class="p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-[11px] leading-relaxed">
+                    <i class="fa-solid fa-circle-exclamation mr-1"></i>
+                    Công việc sẽ được chuyển về cột <strong>CẦN SỬA LẠI (REWORK)</strong> để nhân sự phụ trách tiếp tục xử lý theo yêu cầu.
+                </div>
+                <div>
+                    <label class="block font-semibold mb-1 text-slate-700">Mô tả lỗi hoặc lý do cần sửa lại <span class="text-rose-500">*</span></label>
+                    <textarea id="reworkNoteInput" rows="3" required placeholder="Ví dụ: Kiểm tra lại thanh toán thất bại trên mobile, hoặc cần cập nhật tài liệu API..." class="w-full border border-slate-200 rounded-lg p-2.5 text-xs outline-none focus:border-amber-500"></textarea>
+                </div>
+                <div class="flex justify-end space-x-2 pt-3 border-t border-slate-100">
+                    <button type="button" onclick="closeModal('reworkModal')" class="px-3.5 py-1.5 border border-slate-200 rounded-lg font-semibold text-slate-600 hover:bg-slate-50 transition">Hủy</button>
+                    <button type="button" onclick="submitReworkRequest()" class="px-4 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-semibold transition flex items-center space-x-1.5 shadow-2xs">
+                        <i class="fa-solid fa-arrows-rotate text-[11px]"></i>
+                        <span>Xác nhận yêu cầu sửa</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Tạo Dự Án Mới -->
+    <div id="projectModal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-5 space-y-4 border border-slate-200">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h3 class="text-sm font-bold text-slate-900">Tạo dự án mới</h3>
+                <button onclick="closeModal('projectModal')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form onsubmit="handleCreateProject(event)" class="space-y-3 text-xs">
+                <div>
+                    <label class="block font-semibold mb-1 text-slate-700">Tên dự án <span class="text-rose-500">*</span></label>
+                    <input id="projectName" type="text" required placeholder="Ví dụ: Cổng Thanh Toán Mobile..." class="w-full border border-slate-200 rounded-lg p-2 text-xs outline-none focus:border-slate-500">
+                </div>
+                <div>
+                    <label class="block font-semibold mb-1 text-slate-700">Mô tả dự án</label>
+                    <textarea id="projectDesc" rows="3" placeholder="Mục tiêu của dự án..." class="w-full border border-slate-200 rounded-lg p-2 text-xs outline-none focus:border-slate-500"></textarea>
+                </div>
+                <div class="flex justify-end space-x-2 pt-3 border-t border-slate-100">
+                    <button type="button" onclick="closeModal('projectModal')" class="px-3.5 py-1.5 border border-slate-200 rounded-lg font-semibold text-slate-600 hover:bg-slate-50 transition">Hủy</button>
+                    <button type="submit" class="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-semibold transition">Lưu dự án</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Thêm Subtask -->
+    <div id="subtaskModal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-xl max-w-sm w-full p-5 space-y-4 border border-slate-200">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h3 class="text-sm font-bold text-slate-900">Thêm việc con</h3>
+                <button onclick="closeModal('subtaskModal')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form onsubmit="handleAddSubtask(event)" class="space-y-3 text-xs">
+                <input type="hidden" id="subtaskParentTaskId">
+                <div>
+                    <label class="block font-semibold mb-1 text-slate-700">Tên việc con <span class="text-rose-500">*</span></label>
+                    <input id="subtaskTitleInput" type="text" required placeholder="Nhập tiêu đề việc con..." class="w-full border border-slate-200 rounded-lg p-2 text-xs outline-none focus:border-slate-500">
+                </div>
+                <div class="flex justify-end space-x-2 pt-3 border-t border-slate-100">
+                    <button type="button" onclick="closeModal('subtaskModal')" class="px-3.5 py-1.5 border border-slate-200 rounded-lg font-semibold text-slate-600 hover:bg-slate-50 transition">Hủy</button>
+                    <button type="submit" class="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-semibold transition">Thêm</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Phân Công Việc (Assign Modal) -->
+    <div id="assignModal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-xl max-w-sm w-full p-5 space-y-4 border border-slate-200">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h3 class="text-sm font-bold text-slate-900">Phân công nhân sự</h3>
+                <button onclick="closeModal('assignModal')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form onsubmit="handleAssignTask(event)" class="space-y-3 text-xs">
+                <input type="hidden" id="assignTaskId">
+                <div>
+                    <p class="text-slate-500 mb-2">Chọn nhân viên phụ trách cho công việc này:</p>
+                    <select id="assignUserSelect" required class="w-full border border-slate-200 rounded-lg p-2 text-xs outline-none bg-white">
+                        <!-- Populated by JS -->
+                    </select>
+                </div>
+                <div class="flex justify-end space-x-2 pt-3 border-t border-slate-100">
+                    <button type="button" onclick="closeModal('assignModal')" class="px-3.5 py-1.5 border border-slate-200 rounded-lg font-semibold text-slate-600 hover:bg-slate-50 transition">Hủy</button>
+                    <button type="submit" class="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-semibold transition">Lưu phân công</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Nộp Minh Chứng Hoàn Thành (Proof of Completion Modal) -->
+    <div id="proofModal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-5 space-y-4 border border-slate-200">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div class="flex items-center space-x-2">
+                    <span class="w-6 h-6 rounded-md bg-emerald-50 text-emerald-600 flex items-center justify-center text-xs">
+                        <i class="fa-solid fa-certificate"></i>
+                    </span>
+                    <h3 class="text-sm font-bold text-slate-900">Nộp minh chứng hoàn thành</h3>
+                </div>
+                <button onclick="closeModal('proofModal')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <form onsubmit="handleCompleteTaskWithProof(event)" class="space-y-3.5 text-xs">
+                <input type="hidden" id="proofTaskId">
+                
+                <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                    <span class="text-[11px] text-slate-500 block">Công việc hoàn thành:</span>
+                    <strong id="proofTaskTitleDisplay" class="text-xs text-slate-900 block truncate mt-0.5">...</strong>
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">
+                        Báo cáo kết quả / Giải pháp thực hiện <span class="text-rose-500">* (Bắt buộc)</span>
+                    </label>
+                    <textarea id="proofCompletionNote" required rows="3" 
+                              placeholder="Mô tả cụ thể kết quả: đã code xong chức năng, chạy pass unit test, merge code, deploy..." 
+                              class="w-full border border-slate-200 rounded-lg p-2.5 text-xs outline-none focus:border-slate-400 bg-white"></textarea>
+                    <span class="text-[10px] text-slate-400">Yêu cầu minh chứng nghiệm thu công việc trước khi chuyển sang trạng thái ĐÃ XONG.</span>
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">
+                        Ảnh minh chứng nghiệm thu <span class="text-slate-400 font-normal">(Dán trực tiếp hoặc chọn ảnh)</span>
+                    </label>
+                    <div id="proofDropZone" onclick="document.getElementById('proofImageFileInput').click()"
+                         class="border-2 border-dashed border-slate-200 hover:border-emerald-400 rounded-lg p-3 text-center cursor-pointer transition bg-slate-50 hover:bg-emerald-50/20">
+                        <input type="file" id="proofImageFileInput" accept="image/*" class="hidden" onchange="handleProofImageSelected(event)">
+                        <div id="proofDropPrompt" class="space-y-1">
+                            <i class="fa-regular fa-image text-xl text-slate-400"></i>
+                            <p class="text-[11px] text-slate-600 font-medium">Bấm chọn ảnh hoặc nhấn <kbd class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold border border-emerald-300">Ctrl + V</kbd> để dán ảnh màn hình</p>
+                            <p class="text-[10px] text-slate-400">Hỗ trợ dán ảnh từ clipboard, file PNG, JPG, WebP</p>
+                        </div>
+                        <div id="proofImagePreviewContainer" class="hidden relative inline-block mt-1" onclick="event.stopPropagation()">
+                            <img id="proofImagePreview" src="" alt="Minh chứng" class="max-h-40 max-w-full rounded-lg border border-emerald-300 shadow-sm mx-auto object-contain">
+                            <button type="button" onclick="clearProofImage(event)" class="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-rose-500 text-white flex items-center justify-center text-[10px] hover:bg-rose-600 shadow" title="Xóa ảnh">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">
+                        Hoặc đường dẫn tài liệu / Pull Request / Demo <span class="text-slate-400 font-normal">(Tùy chọn)</span>
+                    </label>
+                    <div class="relative">
+                        <i class="fa-solid fa-link absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                        <input id="proofUrlInput" type="text" 
+                               placeholder="https://github.com/... hoặc link Google Drive, Docs" 
+                               class="w-full pl-8 pr-3 py-2 border border-slate-200 rounded-lg text-xs outline-none focus:border-slate-400 bg-white">
+                    </div>
+                </div>
+
+                <div class="flex justify-end space-x-2 pt-3 border-t border-slate-100">
+                    <button type="button" onclick="closeModal('proofModal')" class="px-3.5 py-1.5 border border-slate-200 rounded-lg font-semibold text-slate-600 hover:bg-slate-50 transition">Hủy</button>
+                    <button type="submit" class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold transition flex items-center space-x-1.5">
+                        <i class="fa-solid fa-check"></i>
+                        <span>Xác nhận & Hoàn tất</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Xem Ảnh Minh Chứng Kích Thước Lớn (Lightbox) -->
+    <div id="imageLightboxModal" class="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm hidden flex items-center justify-center p-4" onclick="closeModal('imageLightboxModal')">
+        <div class="relative max-w-4xl max-h-[90vh] bg-transparent flex flex-col items-center" onclick="event.stopPropagation()">
+            <button onclick="closeModal('imageLightboxModal')" class="absolute -top-10 right-0 text-white hover:text-slate-300 text-sm font-semibold flex items-center space-x-1 p-1">
+                <i class="fa-solid fa-xmark"></i> <span>Đóng</span>
+            </button>
+            <img id="imageLightboxSrc" src="" alt="Minh chứng chi tiết" class="max-w-full max-h-[85vh] rounded-lg shadow-2xl border border-slate-700 object-contain bg-black/40">
+        </div>
+    </div>
+
+    <!-- Modal Xác Thực: Đăng Nhập & Đăng Ký (Minimalist Clean Auth) -->
+    <div id="authModal" class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-200">
+            
+            <!-- Auth Modal Header -->
+            <div class="bg-slate-900 p-5 text-white flex items-center justify-between">
+                <div>
+                    <h3 class="text-base font-bold">Xác Thực Người Dùng</h3>
+                    <p class="text-[11px] text-slate-400">TaskFlow Enterprise • Spring Security 6 & JWT</p>
+                </div>
+                <button onclick="closeModal('authModal')" class="text-slate-400 hover:text-white transition">
+                    <i class="fa-solid fa-xmark text-base"></i>
+                </button>
+            </div>
+
+            <!-- Segmented Auth Tab Switcher -->
+            <div class="p-4 border-b border-slate-100 bg-slate-50">
+                <div class="flex rounded-lg border border-slate-200 bg-white p-0.5 text-xs font-semibold">
+                    <button id="authTabLoginBtn" onclick="switchAuthTab('login')" class="flex-1 py-1.5 rounded-md bg-slate-900 text-white shadow-sm transition">
+                        Đăng Nhập
+                    </button>
+                    <button id="authTabRegisterBtn" onclick="switchAuthTab('register')" class="flex-1 py-1.5 rounded-md text-slate-600 hover:text-slate-900 transition">
+                        Đăng Ký Mới
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tab: ĐĂNG NHẬP -->
+            <div id="authLoginTab" class="p-5 space-y-4">
+                <form onsubmit="handleLoginForm(event)" class="space-y-3 text-xs">
+                    <div>
+                        <label class="block font-semibold mb-1 text-slate-700">Tên đăng nhập</label>
+                        <input id="loginUsername" type="text" required placeholder="Nhập username..." class="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs outline-none focus:border-slate-500">
+                    </div>
+                    <div>
+                        <label class="block font-semibold mb-1 text-slate-700">Mật khẩu</label>
+                        <div class="relative">
+                            <input id="loginPassword" type="password" required placeholder="Nhập mật khẩu..." class="w-full px-3 py-2 pr-9 rounded-lg border border-slate-200 text-xs outline-none focus:border-slate-500">
+                            <button type="button" onclick="togglePasswordVisibility('loginPassword', 'loginEyeIcon')" class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600">
+                                <i id="loginEyeIcon" class="fa-regular fa-eye text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <button type="submit" id="btnSubmitLogin" class="w-full py-2.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs transition">
+                        Đăng Nhập
+                    </button>
+                </form>
+
+                <!-- Quick Accounts -->
+                <div class="pt-3 border-t border-slate-100">
+                    <p class="text-[10px] uppercase font-bold text-slate-400 mb-2 text-center">Hoặc chọn nhanh tài khoản kiểm thử:</p>
+                    <div class="grid grid-cols-3 gap-2 text-[11px]">
+                        <button onclick="quickFillAndLogin('admin', 'admin123')" class="p-2 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-800 flex flex-col items-center">
+                            <span class="font-bold">ADMIN</span>
+                            <span class="text-[9px] text-slate-400">admin123</span>
+                        </button>
+                        <button onclick="quickFillAndLogin('dev_nam', 'dev123')" class="p-2 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-800 flex flex-col items-center">
+                            <span class="font-bold">EMPLOYEE</span>
+                            <span class="text-[9px] text-slate-400">dev123</span>
+                        </button>
+                        <button onclick="quickFillAndLogin('client_vinfast', 'client123')" class="p-2 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-800 flex flex-col items-center">
+                            <span class="font-bold">CLIENT</span>
+                            <span class="text-[9px] text-slate-400">client123</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: ĐĂNG KÝ -->
+            <div id="authRegisterTab" class="p-5 space-y-4 hidden">
+                <form onsubmit="handleRegisterForm(event)" class="space-y-3 text-xs">
+                    <div>
+                        <label class="block font-semibold mb-1 text-slate-700">Tên đăng nhập <span class="text-rose-500">*</span></label>
+                        <input id="regUsername" type="text" required placeholder="nguyen_van_a..." class="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs outline-none">
+                    </div>
+                    <div>
+                        <label class="block font-semibold mb-1 text-slate-700">Mật khẩu <span class="text-rose-500">*</span></label>
+                        <input id="regPassword" type="password" required minlength="6" placeholder="Tối thiểu 6 ký tự..." class="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs outline-none">
+                    </div>
+                    <div>
+                        <label class="block font-semibold mb-1 text-slate-700">Họ và tên <span class="text-rose-500">*</span></label>
+                        <input id="regFullName" type="text" required placeholder="Nguyễn Văn A..." class="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs outline-none">
+                    </div>
+                    <div>
+                        <label class="block font-semibold mb-1 text-slate-700">Email <span class="text-rose-500">*</span></label>
+                        <input id="regEmail" type="email" required placeholder="a.nguyen@example.com..." class="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs outline-none">
+                    </div>
+                    <div>
+                        <label class="block font-semibold mb-1 text-slate-700">Vai trò tham gia</label>
+                        <select id="regRole" class="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs outline-none bg-white">
+                            <option value="CLIENT">Khách Hàng (Client - Theo dõi tiến độ dự án)</option>
+                            <option value="EMPLOYEE">Nhân Viên (Employee - Thực hiện task)</option>
+                        </select>
+                    </div>
+                    <button type="submit" id="btnSubmitRegister" class="w-full py-2.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs transition">
+                        Đăng Ký Tài Khoản
+                    </button>
+                </form>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Minimalist Toast Notification -->
+    <div id="toast" class="fixed bottom-5 right-5 z-50 transform transition-all duration-300 translate-y-16 opacity-0 pointer-events-none flex items-center space-x-2.5 px-3.5 py-2.5 rounded-lg shadow-lg text-xs font-medium text-white bg-slate-900 border border-slate-800">
+        <span id="toastIcon"><i class="fa-solid fa-circle-check text-emerald-400"></i></span>
+        <span id="toastMsg">Thông báo</span>
+    </div>
+
+    <!-- ================= JAVASCRIPT APPLICATION LOGIC ================= -->
+    <script>
+        const API_BASE = '/api/v1';
+        let currentUser = null;
+        let jwtToken = localStorage.getItem('taskflow_jwt');
+        let projectsList = [];
+        let assigneesList = [];
+        let filterTimeout = null;
+        let isMyTasksMode = false;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            await initAuth();
+            loadAllData();
+        });
+
+        // --- Auth Setup ---
+        async function initAuth() {
+            if (!jwtToken) {
+                await loginAs('admin', 'admin123', false);
+            } else {
+                try {
+                    const res = await fetch(`${API_BASE}/auth/me`, {
+                        headers: { 'Authorization': `Bearer ${jwtToken}` }
+                    });
+                    if (res.ok) {
+                        const json = await res.json();
+                        currentUser = json.data;
+                        updateUserUI();
+                    } else {
+                        await loginAs('admin', 'admin123', false);
+                    }
+                } catch (e) {
+                    await loginAs('admin', 'admin123', false);
+                }
+            }
+        }
+
+        async function loginAs(username, password, showNotification = true) {
+            try {
+                const res = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const json = await res.json();
+                if (res.ok && json.success) {
+                    jwtToken = json.data.token;
+                    localStorage.setItem('taskflow_jwt', jwtToken);
+                    currentUser = {
+                        id: json.data.id,
+                        username: json.data.username,
+                        fullName: json.data.fullName,
+                        email: json.data.email,
+                        role: json.data.role,
+                        roleDisplayName: json.data.roleDisplayName
+                    };
+                    updateUserUI();
+                    if (showNotification) {
+                        showToast(`Đăng nhập thành công: ${currentUser.fullName} (${currentUser.roleDisplayName})`);
+                        loadAllData();
+                    }
+                    return true;
+                } else {
+                    showToast(json.message || 'Đăng nhập không thành công', 'error');
+                    return false;
+                }
+            } catch (err) {
+                console.error(err);
+                showToast('Lỗi kết nối máy chủ', 'error');
+                return false;
+            }
+        }
+
+        function updateUserUI() {
+            const loggedInGroup = document.getElementById('authLoggedInGroup');
+            const loggedOutGroup = document.getElementById('authLoggedOutGroup');
+            const nameEl = document.getElementById('userFullName');
+            const badgeEl = document.getElementById('roleBadge');
+            const emailEl = document.getElementById('dropdownUserEmail');
+            const bTitle = document.getElementById('roleAlertTitle');
+            const bDesc = document.getElementById('roleAlertDesc');
+            const bDot = document.getElementById('roleStatusDot');
+            const modeTag = document.getElementById('roleModeTag');
+            const btnNewProj = document.getElementById('btnNewProject');
+            const btnNewProjTab = document.getElementById('btnNewProjectTab');
+
+            if (!currentUser) {
+                if (loggedInGroup) loggedInGroup.classList.add('hidden');
+                if (loggedOutGroup) {
+                    loggedOutGroup.classList.remove('hidden');
+                    loggedOutGroup.classList.add('flex');
+                }
+                bTitle.innerText = 'Chưa đăng nhập';
+                bDesc.innerText = '• Vui lòng đăng nhập để bắt đầu làm việc.';
+                bDot.className = 'w-2 h-2 rounded-full bg-slate-400';
+                modeTag.innerText = 'Khách viếng thăm';
+                if (btnNewProj) btnNewProj.classList.add('hidden');
+                if (btnNewProjTab) btnNewProjTab.classList.add('hidden');
+                return;
+            }
+
+            if (loggedInGroup) loggedInGroup.classList.remove('hidden');
+            if (loggedOutGroup) {
+                loggedOutGroup.classList.add('hidden');
+                loggedOutGroup.classList.remove('flex');
+            }
+
+            nameEl.innerText = currentUser.fullName;
+            badgeEl.innerText = currentUser.role;
+            const dropdownNameEl = document.getElementById('dropdownUserName');
+            if (dropdownNameEl) dropdownNameEl.innerText = currentUser.fullName;
+            if (emailEl) emailEl.innerText = currentUser.email || `${currentUser.username}@taskmanager.com`;
+
+            const segmentedToggle = document.getElementById('segmentedViewToggle');
+            const empBadge = document.getElementById('employeeRoleBadge');
+            const filterAssignee = document.getElementById('filterAssignee');
+            if (currentUser.role === 'ADMIN') {
+                badgeEl.className = 'px-1.5 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-900 text-white';
+                bTitle.innerText = `Quản Trị Viên: ${currentUser.fullName}`;
+                bDesc.innerText = '• Toàn quyền quản lý mọi dự án, phân công nhân sự và xem toàn bộ việc hệ thống.';
+                bDot.className = 'w-2 h-2 rounded-full bg-slate-900';
+                modeTag.innerText = 'Toàn quyền Admin';
+                if (btnNewProj) btnNewProj.classList.remove('hidden');
+                if (btnNewProjTab) btnNewProjTab.classList.remove('hidden');
+                if (segmentedToggle) segmentedToggle.classList.remove('hidden');
+                if (empBadge) {
+                    empBadge.classList.add('hidden');
+                    empBadge.classList.remove('inline-flex');
+                }
+                if (filterAssignee) filterAssignee.classList.remove('hidden');
+            } else if (currentUser.role === 'EMPLOYEE') {
+                badgeEl.className = 'px-1.5 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-200 text-slate-800';
+                bTitle.innerText = `Nhân Viên: ${currentUser.fullName}`;
+                bDesc.innerText = '• Bạn chỉ xem và cập nhật các công việc được giao cho chính mình.';
+                bDot.className = 'w-2 h-2 rounded-full bg-blue-500';
+                modeTag.innerText = 'Công việc cá nhân';
+                if (btnNewProj) btnNewProj.classList.remove('hidden');
+                if (btnNewProjTab) btnNewProjTab.classList.remove('hidden');
+                if (segmentedToggle) segmentedToggle.classList.add('hidden');
+                if (empBadge) {
+                    empBadge.classList.remove('hidden');
+                    empBadge.classList.add('inline-flex');
+                }
+                if (filterAssignee) filterAssignee.classList.add('hidden');
+            } else {
+                badgeEl.className = 'px-1.5 py-0.5 rounded text-[10px] font-bold uppercase bg-blue-100 text-blue-800';
+                bTitle.innerText = `Khách Hàng: ${currentUser.fullName}`;
+                bDesc.innerText = '• Giám sát tiến độ dự án của bạn theo thời gian thực và gửi yêu cầu nghiệm thu.';
+                bDot.className = 'w-2 h-2 rounded-full bg-blue-600';
+                modeTag.innerText = 'Client Portal';
+                if (btnNewProj) btnNewProj.classList.add('hidden');
+                if (btnNewProjTab) btnNewProjTab.classList.add('hidden');
+                if (segmentedToggle) segmentedToggle.classList.add('hidden');
+                if (empBadge) {
+                    empBadge.classList.add('hidden');
+                    empBadge.classList.remove('inline-flex');
+                }
+                if (filterAssignee) filterAssignee.classList.add('hidden');
+            }
+        }
+
+        // --- Fetch with Bearer Auth ---
+        async function authFetch(url, options = {}) {
+            options.headers = options.headers || {};
+            if (jwtToken) {
+                options.headers['Authorization'] = `Bearer ${jwtToken}`;
+            }
+            const res = await fetch(url, options);
+            if (res.status === 401 && currentUser) {
+                showToast('Phiên đăng nhập hết hạn, vui lòng đăng nhập lại.', 'error');
+                logout();
+            }
+            return res;
+        }
+
+        async function loadAllData() {
+            await Promise.all([loadStats(), loadProjects(), loadAssignees(), loadTasks(), loadSmartPriority()]);
+        }
+
+        // --- Notifications ---
+        function showToast(msg, type = 'success') {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toastMsg');
+            const toastIcon = document.getElementById('toastIcon');
+            toastMsg.innerText = msg;
+            toastIcon.innerHTML = type === 'success' 
+                ? '<i class="fa-solid fa-circle-check text-emerald-400"></i>' 
+                : '<i class="fa-solid fa-triangle-exclamation text-rose-400"></i>';
+            toast.style.transform = 'translateY(0)';
+            toast.style.opacity = '1';
+            setTimeout(() => {
+                toast.style.transform = 'translateY(64px)';
+                toast.style.opacity = '0';
+            }, 3000);
+        }
+
+        // --- Modals ---
+        function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+        // --- User Profile Dropdown Toggle ---
+        function toggleUserDropdown(event) {
+            if (event) event.stopPropagation();
+            const menu = document.getElementById('userDropdownMenu');
+            const chevron = document.getElementById('userDropdownChevron');
+            if (!menu) return;
+            const isHidden = menu.classList.contains('hidden');
+            if (isHidden) {
+                menu.classList.remove('hidden');
+                if (chevron) chevron.classList.add('rotate-180');
+            } else {
+                menu.classList.add('hidden');
+                if (chevron) chevron.classList.remove('rotate-180');
+            }
+        }
+
+        function closeUserDropdown() {
+            const menu = document.getElementById('userDropdownMenu');
+            const chevron = document.getElementById('userDropdownChevron');
+            if (menu) menu.classList.add('hidden');
+            if (chevron) chevron.classList.remove('rotate-180');
+        }
+
+        document.addEventListener('click', (e) => {
+            const btn = document.getElementById('userDropdownBtn');
+            const menu = document.getElementById('userDropdownMenu');
+            if (menu && !menu.classList.contains('hidden')) {
+                if (btn && !btn.contains(e.target) && !menu.contains(e.target)) {
+                    closeUserDropdown();
+                }
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeUserDropdown();
+            }
+        });
+
+        // --- Tabs Navigation ---
+        function switchTab(tabId) {
+            ['tasksTab', 'statsTab', 'priorityTab', 'projectsTab'].forEach(t => {
+                const el = document.getElementById(t);
+                if (el) el.classList.add('hidden');
+            });
+            const target = document.getElementById(tabId);
+            if (target) target.classList.remove('hidden');
+
+            const navs = {
+                tasksTab: document.getElementById('navTabTasks'),
+                statsTab: document.getElementById('navTabStats'),
+                priorityTab: document.getElementById('navTabPriority'),
+                projectsTab: document.getElementById('navTabProjects')
+            };
+
+            Object.values(navs).forEach(btn => {
+                if (btn) btn.className = 'px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition';
+            });
+            if (navs[tabId]) {
+                navs[tabId].className = 'px-3 py-1.5 rounded-lg bg-slate-100 text-slate-900 font-semibold transition';
+            }
+
+            if (tabId === 'statsTab') {
+                loadStats();
+            } else if (tabId === 'priorityTab') {
+                loadSmartPriority();
+            } else if (tabId === 'projectsTab') {
+                loadProjects();
+            } else if (tabId === 'tasksTab') {
+                loadTasks();
+            }
+        }
+
+        function switchTaskModalTab(mode) {
+            const nlpSec = document.getElementById('taskModalNlpSection');
+            const manSec = document.getElementById('taskModalManualSection');
+            const btnNlp = document.getElementById('tabBtnNlp');
+            const btnMan = document.getElementById('tabBtnManual');
+            if (mode === 'nlp') {
+                if (nlpSec) nlpSec.classList.remove('hidden');
+                if (manSec) manSec.classList.add('hidden');
+                if (btnNlp) btnNlp.className = 'flex-1 pb-2 text-xs font-semibold text-slate-900 border-b-2 border-slate-900 flex items-center justify-center space-x-1.5 transition';
+                if (btnMan) btnMan.className = 'flex-1 pb-2 text-xs font-semibold text-slate-500 hover:text-slate-800 border-b-2 border-transparent flex items-center justify-center space-x-1.5 transition';
+                setTimeout(() => { const inp = document.getElementById('quickTaskInput'); if (inp) inp.focus(); }, 100);
+            } else {
+                if (nlpSec) nlpSec.classList.add('hidden');
+                if (manSec) manSec.classList.remove('hidden');
+                if (btnMan) btnMan.className = 'flex-1 pb-2 text-xs font-semibold text-slate-900 border-b-2 border-slate-900 flex items-center justify-center space-x-1.5 transition';
+                if (btnNlp) btnNlp.className = 'flex-1 pb-2 text-xs font-semibold text-slate-500 hover:text-slate-800 border-b-2 border-transparent flex items-center justify-center space-x-1.5 transition';
+            }
+        }
+
+        function setMyTasksFilter(enableMyTasks) {
+            isMyTasksMode = enableMyTasks;
+            const btnAll = document.getElementById('btnViewAllTasks');
+            const btnMy = document.getElementById('btnViewMyTasks');
+            const filterAssignee = document.getElementById('filterAssignee');
+
+            if (isMyTasksMode) {
+                if (btnMy) btnMy.className = 'h-7 px-2.5 rounded-md text-xs font-semibold bg-white text-slate-900 shadow-2xs transition flex items-center space-x-1';
+                if (btnAll) btnAll.className = 'h-7 px-2.5 rounded-md text-xs font-semibold text-slate-600 hover:text-slate-900 transition';
+                if (filterAssignee && currentUser) {
+                    filterAssignee.value = currentUser.id;
+                }
+            } else {
+                if (btnAll) btnAll.className = 'h-7 px-2.5 rounded-md text-xs font-semibold bg-white text-slate-900 shadow-2xs transition';
+                if (btnMy) btnMy.className = 'h-7 px-2.5 rounded-md text-xs font-semibold text-slate-600 hover:text-slate-900 transition flex items-center space-x-1';
+                if (filterAssignee) {
+                    filterAssignee.value = '';
+                }
+            }
+            switchTab('tasksTab');
+            loadTasks();
+        }
+
+        // --- Load Stats ---
+        async function loadStats() {
+            try {
+                const res = await authFetch(`${API_BASE}/analytics/dashboard`);
+                const json = await res.json();
+                if (json.success && json.data) {
+                    const d = json.data;
+                    if (document.getElementById('statTotalProjects')) document.getElementById('statTotalProjects').innerText = d.totalProjects;
+                    if (document.getElementById('statTotalTasks')) document.getElementById('statTotalTasks').innerText = d.totalTasks;
+                    if (document.getElementById('statOverdueTasks')) document.getElementById('statOverdueTasks').innerText = d.overdueTasks;
+                    if (document.getElementById('statCompletionRate')) document.getElementById('statCompletionRate').innerText = `${d.overallCompletionRate}%`;
+
+                    if (document.getElementById('statCountTodo')) document.getElementById('statCountTodo').innerText = (d.tasksByStatus && d.tasksByStatus.TODO) || 0;
+                    if (document.getElementById('statCountInProgress')) document.getElementById('statCountInProgress').innerText = (d.tasksByStatus && d.tasksByStatus.IN_PROGRESS) || 0;
+                    if (document.getElementById('statCountRework')) document.getElementById('statCountRework').innerText = (d.tasksByStatus && d.tasksByStatus.REWORK) || 0;
+                    if (document.getElementById('statCountDone')) document.getElementById('statCountDone').innerText = (d.tasksByStatus && d.tasksByStatus.DONE) || 0;
+
+                    renderStatsProjects(d.projectSummaries || []);
+                }
+            } catch (err) { console.error('Error loading stats:', err); }
+        }
+
+        function renderStatsProjects(summaries) {
+            const container = document.getElementById('statsProjectsContainer');
+            if (!container) return;
+            if (!summaries || summaries.length === 0) {
+                container.innerHTML = '<div class="text-center text-xs text-slate-400 py-6">Chưa có dữ liệu dự án</div>';
+                return;
+            }
+            container.innerHTML = summaries.map(p => `
+                <div class="p-3.5 bg-slate-50/70 border border-slate-200 rounded-xl space-y-2">
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="font-bold text-slate-800 truncate max-w-[260px]">${escapeHtml(p.projectName)}</span>
+                        <span class="font-semibold text-slate-600">${p.completedTasks}/${p.totalTasks} việc (${p.completionRate}%)</span>
+                    </div>
+                    <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                        <div class="bg-slate-900 h-2 rounded-full transition-all duration-300" style="width: ${p.completionRate}%"></div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // --- Load Projects ---
+        async function loadProjects() {
+            try {
+                const res = await authFetch(`${API_BASE}/projects`);
+                const json = await res.json();
+                if (json.success) {
+                    projectsList = json.data;
+                    renderProjectOptions();
+                    renderProjectCards();
+                }
+            } catch (err) { console.error('Error loading projects:', err); }
+        }
+
+        function renderProjectOptions() {
+            const filterSelect = document.getElementById('filterProject');
+            const taskModalSelect = document.getElementById('taskProjectSelect');
+            const quickSelect = document.getElementById('quickTaskProjectSelect');
+
+            let filterHtml = '<option value="">Tất cả dự án</option>';
+            let modalHtml = '';
+
+            projectsList.forEach(p => {
+                filterHtml += `<option value="${p.id}">${escapeHtml(p.name)}</option>`;
+                modalHtml += `<option value="${p.id}">${escapeHtml(p.name)}</option>`;
+            });
+
+            if (filterSelect) filterSelect.innerHTML = filterHtml;
+            if (taskModalSelect) taskModalSelect.innerHTML = modalHtml;
+            if (quickSelect) quickSelect.innerHTML = modalHtml;
+        }
+
+        function renderProjectCards() {
+            const container = document.getElementById('projectsContainer');
+            if (!container) return;
+            if (projectsList.length === 0) {
+                container.innerHTML = '<div class="col-span-full text-center text-slate-400 py-10 bg-white rounded-xl border border-slate-200">Không có dự án nào khả dụng</div>';
+                return;
+            }
+            container.innerHTML = projectsList.map(p => `
+                <div class="bg-white p-4 rounded-xl border border-slate-200 space-y-3.5 hover:border-slate-300 transition">
+                    <div class="flex items-start justify-between">
+                        <div class="space-y-1">
+                            <div class="flex items-center space-x-2">
+                                <h4 class="font-bold text-slate-900 text-sm">${escapeHtml(p.name)}</h4>
+                                ${p.clientName ? `<span class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200">${escapeHtml(p.clientName)}</span>` : ''}
+                            </div>
+                            <p class="text-xs text-slate-500 line-clamp-2">${escapeHtml(p.description || 'Chưa có mô tả chi tiết')}</p>
+                        </div>
+                        ${currentUser && currentUser.role === 'ADMIN' ? `
+                            <button onclick="deleteProject(${p.id})" class="text-slate-300 hover:text-rose-600 transition text-xs p-1" title="Xóa dự án">
+                                <i class="fa-regular fa-trash-can"></i>
+                            </button>
+                        ` : ''}
+                    </div>
+
+                    ${p.memberNames && p.memberNames.length > 0 ? `
+                        <div class="text-[11px] text-slate-500 flex items-center space-x-1.5">
+                            <i class="fa-solid fa-users text-slate-400 text-[10px]"></i>
+                            <span>Phụ trách: <strong>${p.memberNames.join(', ')}</strong></span>
+                        </div>
+                    ` : ''}
+
+                    <div class="space-y-1.5 pt-1 border-t border-slate-100">
+                        <div class="flex justify-between text-xs font-medium text-slate-600">
+                            <span>Tiến độ (${p.completedTasks}/${p.totalTasks} việc)</span>
+                            <span class="font-bold text-slate-900">${p.completionRate}%</span>
+                        </div>
+                        <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                            <div class="bg-slate-900 h-1.5 rounded-full transition-all duration-300" style="width: ${p.completionRate}%"></div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // --- Load Assignees (Nhân sự để giao việc & bộ lọc) ---
+        async function loadAssignees() {
+            try {
+                const res = await authFetch(`${API_BASE}/users/assignees`);
+                if (res.ok) {
+                    const json = await res.json();
+                    if (json.success) {
+                        assigneesList = json.data;
+                        const select = document.getElementById('assignUserSelect');
+                        if (select) {
+                            select.innerHTML = assigneesList.map(u => `
+                                <option value="${u.id}">${escapeHtml(u.fullName)} (${u.roleDisplayName})</option>
+                            `).join('');
+                        }
+                        const filterSelect = document.getElementById('filterAssignee');
+                        if (filterSelect) {
+                            let fHtml = '<option value="">Tất cả nhân sự</option><option value="-1">Chưa phân công</option>';
+                            assigneesList.forEach(u => {
+                                fHtml += `<option value="${u.id}">👤 ${escapeHtml(u.fullName)}</option>`;
+                            });
+                            filterSelect.innerHTML = fHtml;
+                        }
+                    }
+                }
+            } catch (err) { console.error('Error loading assignees:', err); }
+        }
+
+        function handleAssigneeFilterChange() {
+            const filterAssignee = document.getElementById('filterAssignee');
+            if (isMyTasksMode && filterAssignee.value !== (currentUser ? String(currentUser.id) : '')) {
+                isMyTasksMode = false;
+                const btnAll = document.getElementById('btnViewAllTasks');
+                const btnMy = document.getElementById('btnViewMyTasks');
+                if (btnAll) btnAll.className = 'h-7 px-2.5 rounded-md text-xs font-semibold bg-white text-slate-900 shadow-2xs transition';
+                if (btnMy) btnMy.className = 'h-7 px-2.5 rounded-md text-xs font-semibold text-slate-600 hover:text-slate-900 transition flex items-center space-x-1';
+            }
+            loadTasks();
+        }
+
+        // --- Load Tasks & Kanban ---
+        function debounceFilter() {
+            clearTimeout(filterTimeout);
+            filterTimeout = setTimeout(loadTasks, 300);
+        }
+
+        function resetFilters() {
+            if (document.getElementById('filterKeyword')) document.getElementById('filterKeyword').value = '';
+            if (document.getElementById('filterProject')) document.getElementById('filterProject').value = '';
+            if (document.getElementById('filterPriority')) document.getElementById('filterPriority').value = '';
+            if (document.getElementById('filterStatus')) document.getElementById('filterStatus').value = '';
+            if (document.getElementById('filterSort')) document.getElementById('filterSort').value = 'dueDate_ASC';
+            const fAssignee = document.getElementById('filterAssignee');
+            if (fAssignee) fAssignee.value = '';
+            const fTime = document.getElementById('filterTimeRange');
+            if (fTime) fTime.value = '';
+            isMyTasksMode = false;
+            setMyTasksFilter(false);
+        }
+
+        async function loadTasks() {
+            try {
+                const keyword = document.getElementById('filterKeyword')?.value.trim() || '';
+                const projectId = document.getElementById('filterProject')?.value || '';
+                const status = document.getElementById('filterStatus')?.value || '';
+                const priority = document.getElementById('filterPriority')?.value || '';
+                const filterAssignee = document.getElementById('filterAssignee');
+                const filterTime = document.getElementById('filterTimeRange');
+                const sortVal = document.getElementById('filterSort')?.value || 'dueDate_ASC';
+                const [sortBy, sortDir] = sortVal.split('_');
+
+                let url = `${API_BASE}/tasks`;
+                const params = new URLSearchParams({ 
+                    size: 100,
+                    sortBy: sortBy || 'dueDate',
+                    sortDir: sortDir || 'ASC'
+                });
+
+                if (isMyTasksMode && currentUser) {
+                    params.append('assigneeId', currentUser.id);
+                } else if (filterAssignee && filterAssignee.value) {
+                    params.append('assigneeId', filterAssignee.value);
+                }
+
+                if (filterTime && filterTime.value) {
+                    params.append('timeRange', filterTime.value);
+                }
+
+                if (keyword) params.append('keyword', keyword);
+                if (projectId) params.append('projectId', projectId);
+                if (status) params.append('status', status);
+                if (priority) params.append('priority', priority);
+
+                const res = await authFetch(`${url}?${params.toString()}`);
+                const json = await res.json();
+                if (json.success && json.data) {
+                    renderKanban(json.data.content);
+                }
+            } catch (err) { console.error('Error loading tasks:', err); }
+        }
+
+        function renderKanban(tasks) {
+            const colTodo = document.getElementById('columnTodo');
+            const colInProgress = document.getElementById('columnInProgress');
+            const colRework = document.getElementById('columnRework');
+            const colDone = document.getElementById('columnDone');
+
+            const todos = tasks.filter(t => t.status === 'TODO');
+            const inProgress = tasks.filter(t => t.status === 'IN_PROGRESS');
+            const reworks = tasks.filter(t => t.status === 'REWORK');
+            const dones = tasks.filter(t => t.status === 'DONE');
+
+            document.getElementById('countTodo').innerText = todos.length;
+            document.getElementById('countInProgress').innerText = inProgress.length;
+            if (document.getElementById('countRework')) {
+                document.getElementById('countRework').innerText = reworks.length;
+            }
+            document.getElementById('countDone').innerText = dones.length;
+
+            const emptyCard = (text) => `<div class="text-center text-xs text-slate-400 py-8 bg-white/50 rounded-lg border border-dashed border-slate-200">${text}</div>`;
+
+            colTodo.innerHTML = todos.length ? todos.map(renderTaskCard).join('') : emptyCard('Không có việc');
+            colInProgress.innerHTML = inProgress.length ? inProgress.map(renderTaskCard).join('') : emptyCard('Không có việc');
+            if (colRework) {
+                colRework.innerHTML = reworks.length ? reworks.map(renderTaskCard).join('') : emptyCard('Không có việc lỗi');
+            }
+            colDone.innerHTML = dones.length ? dones.map(renderTaskCard).join('') : emptyCard('Không có việc');
+        }
+
+        function renderTaskCard(t) {
+            const priorityConfig = {
+                URGENT: { label: 'Khẩn cấp', dot: 'bg-rose-500', text: 'text-rose-700 bg-rose-50 border-rose-200' },
+                HIGH: { label: 'Cao', dot: 'bg-amber-500', text: 'text-amber-800 bg-amber-50 border-amber-200' },
+                MEDIUM: { label: 'Vừa', dot: 'bg-slate-400', text: 'text-slate-600 bg-slate-100 border-slate-200' },
+                LOW: { label: 'Thấp', dot: 'bg-slate-300', text: 'text-slate-500 bg-slate-50 border-slate-200' }
+            };
+            const p = priorityConfig[t.priority] || priorityConfig.MEDIUM;
+
+            const isClientRole = currentUser && currentUser.role === 'CLIENT';
+            const isAdminRole = currentUser && currentUser.role === 'ADMIN';
+            const isRework = t.status === 'REWORK';
+            const cardBorder = isRework 
+                ? 'border-amber-300 ring-1 ring-amber-300/60 bg-amber-50/10' 
+                : (t.status === 'DONE' ? 'border-emerald-200/90' : 'border-slate-200');
+
+            return `
+                <div class="bg-white p-3 rounded-xl border ${cardBorder} shadow-2xs hover:border-slate-300 hover:shadow-xs transition space-y-2.5 cursor-grab active:cursor-grabbing select-none"
+                     draggable="${!isClientRole}" 
+                     ondragstart="handleDragStart(event, ${t.id}, '${t.status}', ${t.progress || 0}, '${escapeQuote(t.title)}')"
+                     ondragend="handleDragEnd(event)">
+                    
+                    <!-- Header: Project & Priority -->
+                    <div class="flex items-center justify-between">
+                        <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wide truncate max-w-[140px]" title="${escapeHtml(t.projectName || 'Chung')}">
+                            ${escapeHtml(t.projectName || 'Chung')}
+                        </span>
+                        <div class="flex items-center space-x-1">
+                            ${isRework ? `
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold border text-amber-800 bg-amber-50 border-amber-300">
+                                    <span class="w-1.5 h-1.5 rounded-full mr-1.5 bg-amber-500 animate-pulse"></span>
+                                    Cần sửa lại
+                                </span>
+                            ` : `
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold border ${p.text}">
+                                    <span class="w-1.5 h-1.5 rounded-full mr-1.5 ${p.dot}"></span>
+                                    ${p.label}
+                                </span>
+                            `}
+                        </div>
+                    </div>
+
+                    <!-- Title & Description -->
+                    <div>
+                        <h4 class="font-semibold text-xs text-slate-900 leading-snug">${escapeHtml(t.title)}</h4>
+                        ${t.description ? `<p class="text-[11px] text-slate-500 mt-1 line-clamp-2 leading-relaxed">${escapeHtml(t.description)}</p>` : ''}
+                    </div>
+
+                    <!-- Hộp Ghi Chú Sửa Lại (Hiển thị khi trạng thái là REWORK) -->
+                    ${isRework ? `
+                        <div class="p-2.5 rounded-lg bg-amber-50/90 border border-amber-300 text-[11px] space-y-1.5 shadow-2xs">
+                            <div class="flex items-center text-amber-800 font-semibold space-x-1.5">
+                                <i class="fa-solid fa-triangle-exclamation text-amber-600"></i>
+                                <span>Phản hồi lỗi cần sửa lại:</span>
+                            </div>
+                            <p class="text-slate-800 text-[11px] leading-relaxed break-words bg-white p-2 rounded border border-amber-200">
+                                ${escapeHtml(t.reworkNote || 'Khách hàng/Tester phát hiện lỗi, cần kiểm tra và sửa lại.')}
+                            </p>
+                        </div>
+                    ` : ''}
+
+                    <!-- Subtasks List (Interactive Checklist & Accordion) -->
+                    ${t.subtasks && t.subtasks.length > 0 ? `
+                        <div class="space-y-1.5 pt-2 border-t border-slate-100 text-xs">
+                            <div class="flex justify-between items-center text-[10px] font-semibold text-slate-500">
+                                <span class="flex items-center space-x-1">
+                                    <span>Tiến độ (${t.subtasks.filter(s => s.completed).length}/${t.subtasks.length})</span>
+                                    <span class="text-slate-300">•</span>
+                                    <span class="${t.progress === 100 ? 'text-emerald-600 font-bold' : 'text-slate-700'}">${t.progress}%</span>
+                                </span>
+                                <button type="button" onclick="toggleCardSubtasks(${t.id}, event)" class="text-[10px] text-slate-500 hover:text-slate-800 font-medium flex items-center space-x-1 cursor-pointer">
+                                    <span id="subtaskToggleText-${t.id}">Thu gọn</span>
+                                    <i id="subtaskChevron-${t.id}" class="fa-solid fa-angle-up text-[9px] transition-transform"></i>
+                                </button>
+                            </div>
+                            <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                                <div class="${t.progress === 100 ? 'bg-emerald-500' : 'bg-slate-800'} h-1.5 rounded-full transition-all duration-300" style="width: ${t.progress}%"></div>
+                            </div>
+                            <div id="subtaskList-${t.id}" class="space-y-1 pt-1">
+                                ${t.subtasks.map(s => `
+                                    <div class="flex items-center justify-between py-0.5 text-[11px] group/st">
+                                        <label class="flex items-center space-x-2 cursor-pointer flex-1 min-w-0" onclick="event.stopPropagation()">
+                                            <input type="checkbox" ${s.completed ? 'checked' : ''} 
+                                                   ${isClientRole ? 'disabled' : `onchange="toggleSubtask(${s.id})"`}
+                                                   class="rounded border-slate-300 text-slate-900 focus:ring-0">
+                                            <span class="truncate ${s.completed ? 'line-through text-slate-400' : 'text-slate-700'}">${escapeHtml(s.title)}</span>
+                                        </label>
+                                        ${!isClientRole ? `
+                                            <button type="button" onclick="event.stopPropagation(); deleteSubtask(${s.id});" class="text-slate-300 hover:text-rose-500 ml-1 text-[10px] opacity-0 group-hover/st:opacity-100 transition" title="Xóa việc con">
+                                                <i class="fa-solid fa-xmark"></i>
+                                            </button>
+                                        ` : ''}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+
+                    <!-- Footer: Assignee & Due Date -->
+                    <div class="flex items-center justify-between pt-2 border-t border-slate-100 text-[11px]">
+                        <!-- Assignee -->
+                        <div class="flex items-center space-x-1.5 min-w-0">
+                            ${t.assigneeName ? `
+                                <span class="inline-flex items-center space-x-1 text-slate-700 font-medium ${isAdminRole ? 'cursor-pointer hover:text-blue-600' : ''}" 
+                                      ${isAdminRole ? `onclick="event.stopPropagation(); openAssignModal(${t.id});"` : ''} 
+                                      title="${isAdminRole ? 'Nhấp để đổi người phụ trách' : 'Người phụ trách'}">
+                                    <i class="fa-regular fa-circle-user text-slate-400"></i>
+                                    <span class="truncate max-w-[95px]">${escapeHtml(t.assigneeName)}</span>
+                                </span>
+                            ` : `
+                                ${!isClientRole ? `
+                                    <button type="button" onclick="event.stopPropagation(); selfAssignTask(${t.id});" class="text-slate-500 hover:text-slate-900 font-medium inline-flex items-center space-x-1" title="Nhận việc này cho tôi">
+                                        <i class="fa-solid fa-user-plus text-[10px]"></i>
+                                        <span>Nhận việc</span>
+                                    </button>
+                                ` : '<span class="text-slate-400 italic">Chưa giao</span>'}
+                            `}
+                        </div>
+
+                        <!-- Due Date -->
+                        <div class="flex items-center space-x-1 shrink-0">
+                            ${t.dueDate ? `
+                                <span class="inline-flex items-center space-x-1 font-medium ${t.overdue && t.status !== 'DONE' ? 'text-rose-600 font-semibold' : 'text-slate-500'}">
+                                    <i class="fa-regular fa-clock text-[10px]"></i>
+                                    <span>${formatDueDate(t.dueDate)}</span>
+                                </span>
+                            ` : ''}
+                        </div>
+                    </div>
+
+                    <!-- Minh chứng hoàn thành (Hiển thị khi trạng thái là DONE) -->
+                    ${t.status === 'DONE' ? `
+                        <div class="p-2.5 rounded-lg bg-emerald-50/70 border border-emerald-200/80 text-[11px] space-y-1.5">
+                            <div class="flex items-center justify-between text-emerald-900 font-semibold">
+                                <span class="flex items-center space-x-1.5">
+                                    <i class="fa-solid fa-certificate text-emerald-600"></i>
+                                    <span>Minh chứng hoàn thành:</span>
+                                </span>
+                                ${t.completedAt ? `<span class="text-[10px] font-normal text-emerald-700">${formatDueDate(t.completedAt)}</span>` : ''}
+                            </div>
+                            <p class="text-slate-700 text-[11px] leading-relaxed break-words bg-white/80 p-2 rounded border border-emerald-100">
+                                ${escapeHtml(t.completionNote || 'Đã hoàn thành và nghiệm thu đầy đủ.')}
+                            </p>
+                            <div class="flex flex-col space-y-1.5 pt-0.5 text-[10px]">
+                                ${t.proofUrl ? `
+                                    ${(t.proofUrl.startsWith('data:image/') || t.proofUrl.match(/\.(jpeg|jpg|png|gif|webp)(\?.*)?$/i)) ? `
+                                        <div>
+                                            <span class="text-slate-500 block mb-0.5 font-medium">Ảnh minh chứng đính kèm (bấm để xem lớn):</span>
+                                            <img src="${escapeHtml(t.proofUrl)}" alt="Minh chứng" onclick="event.stopPropagation(); openProofImageLightbox('${escapeQuote(t.proofUrl)}');" 
+                                                 class="max-h-24 max-w-full rounded border border-emerald-300 shadow-2xs hover:opacity-90 transition object-contain bg-white cursor-pointer">
+                                        </div>
+                                    ` : `
+                                        <a href="${escapeHtml(t.proofUrl)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()"
+                                           class="inline-flex items-center space-x-1 text-blue-600 hover:text-blue-800 font-medium hover:underline">
+                                            <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                                            <span>Link tài liệu / PR minh chứng</span>
+                                        </a>
+                                    `}
+                                ` : ''}
+                                ${t.completedByName ? `
+                                    <div class="text-slate-500 text-right">Người xác nhận: <strong class="text-slate-700 font-semibold">${escapeHtml(t.completedByName)}</strong></div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    ` : ''}
+
+                    <!-- Actions Bar: Move Status, Add Subtask, Delete -->
+                    <div class="flex items-center justify-between pt-1 text-xs">
+                        <div class="flex items-center space-x-1">
+                            ${!isClientRole ? `
+                                <button type="button" onclick="event.stopPropagation(); openAddSubtaskModal(${t.id});" class="px-2 py-0.5 rounded text-[11px] font-medium text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition" title="Thêm việc con">
+                                    <i class="fa-solid fa-plus text-[9px] mr-1"></i>Subtask
+                                </button>
+                            ` : ''}
+                            ${isAdminRole ? `
+                                <button type="button" onclick="event.stopPropagation(); openAssignModal(${t.id});" class="px-2 py-0.5 rounded text-[11px] font-medium text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition" title="Giao việc cho nhân sự">
+                                    <i class="fa-solid fa-user-gear text-[9px] mr-1"></i>Giao việc
+                                </button>
+                            ` : ''}
+                        </div>
+
+                        <div class="flex items-center space-x-1">
+                            ${!isClientRole ? `
+                                ${t.status === 'TODO' ? `
+                                    <button type="button" onclick="event.stopPropagation(); updateTaskStatus(${t.id}, 'IN_PROGRESS');" class="px-2.5 py-1 rounded-md bg-blue-50 hover:bg-blue-100 text-blue-700 text-[10px] font-semibold border border-blue-200 transition flex items-center space-x-1 shadow-2xs">
+                                        <i class="fa-solid fa-play text-[8px]"></i>
+                                        <span>Bắt đầu</span>
+                                    </button>
+                                ` : ''}
+                                ${t.status === 'IN_PROGRESS' ? `
+                                    ${(t.subtasks && t.subtasks.length > 0 && t.progress < 100) ? `
+                                        <button type="button" onclick="event.stopPropagation(); showToast('Chưa đạt 100% tiến độ (hiện tại: ${t.progress}%). Vui lòng hoàn thành tất cả các subtask trước khi chuyển sang DONE.', 'error');" 
+                                                class="px-2.5 py-1 rounded-md bg-amber-50 hover:bg-amber-100 text-amber-700 text-[10px] font-semibold border border-amber-200 flex items-center space-x-1 transition" 
+                                                title="Cần hoàn thành 100% subtasks để nộp minh chứng">
+                                            <i class="fa-solid fa-list-check text-[9px]"></i>
+                                            <span>Subtask (${t.progress}%)</span>
+                                        </button>
+                                    ` : `
+                                        <button type="button" onclick="event.stopPropagation(); openProofModal(${t.id}, '${escapeQuote(t.title)}', ${t.progress || 0});" 
+                                                class="px-2.5 py-1 rounded-md bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[10px] font-semibold border border-emerald-200 flex items-center space-x-1 transition shadow-2xs" 
+                                                title="Nộp minh chứng hoàn thành">
+                                            <i class="fa-solid fa-certificate text-[9px]"></i>
+                                            <span>Hoàn tất ✓</span>
+                                        </button>
+                                    `}
+                                ` : ''}
+                                ${t.status === 'REWORK' ? `
+                                    <button type="button" onclick="event.stopPropagation(); updateTaskStatus(${t.id}, 'IN_PROGRESS');" 
+                                            class="px-2.5 py-1 rounded-md bg-blue-50 hover:bg-blue-100 text-blue-700 text-[10px] font-semibold border border-blue-200 flex items-center space-x-1 transition shadow-2xs" 
+                                            title="Bắt đầu sửa lại công việc">
+                                        <i class="fa-solid fa-wrench text-[9px]"></i>
+                                        <span>Tiếp tục sửa</span>
+                                    </button>
+                                    <button type="button" onclick="event.stopPropagation(); openProofModal(${t.id}, '${escapeQuote(t.title)}', ${t.progress || 0});" 
+                                            class="px-2.5 py-1 rounded-md bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[10px] font-semibold border border-emerald-200 flex items-center space-x-1 transition shadow-2xs" 
+                                            title="Nộp lại minh chứng sau khi sửa xong">
+                                        <i class="fa-solid fa-check text-[9px]"></i>
+                                        <span>Nộp lại ✓</span>
+                                    </button>
+                                ` : ''}
+                                ${t.status === 'DONE' ? `
+                                    <button type="button" onclick="event.stopPropagation(); openReworkModal(${t.id}, '${escapeQuote(t.title)}');" 
+                                            class="px-2 py-1 rounded-md bg-amber-50 hover:bg-amber-100 text-amber-700 text-[10px] font-semibold border border-amber-200 flex items-center space-x-1 transition shadow-2xs" 
+                                            title="Tester hoặc Khách phát hiện lỗi yêu cầu làm lại">
+                                        <i class="fa-solid fa-triangle-exclamation text-[9px]"></i>
+                                        <span>Báo lỗi</span>
+                                    </button>
+                                    <button type="button" onclick="event.stopPropagation(); updateTaskStatus(${t.id}, 'IN_PROGRESS');" class="px-2 py-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-medium transition" title="Mở lại việc">
+                                        <i class="fa-solid fa-rotate-left text-[8px] mr-1"></i>Mở lại
+                                    </button>
+                                ` : ''}
+                            ` : `
+                                ${t.status === 'DONE' ? `
+                                    <button type="button" onclick="event.stopPropagation(); openReworkModal(${t.id}, '${escapeQuote(t.title)}');" 
+                                            class="px-2.5 py-1 rounded-md bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-semibold flex items-center space-x-1 transition shadow-2xs" 
+                                            title="Khách hàng phát hiện lỗi yêu cầu nhân viên làm lại">
+                                        <i class="fa-solid fa-triangle-exclamation text-[9px]"></i>
+                                        <span>Yêu cầu sửa lại</span>
+                                    </button>
+                                ` : ''}
+                                ${t.status === 'REWORK' ? `
+                                    <button type="button" onclick="event.stopPropagation(); openReworkModal(${t.id}, '${escapeQuote(t.title)}');" 
+                                            class="px-2 py-1 rounded-md bg-amber-50 hover:bg-amber-100 text-amber-700 text-[10px] font-semibold border border-amber-200 flex items-center space-x-1 transition" 
+                                            title="Sửa lại nội dung phản hồi">
+                                        <i class="fa-solid fa-pen text-[9px]"></i>
+                                        <span>Sửa phản hồi</span>
+                                    </button>
+                                ` : ''}
+                            `}
+
+                            ${isAdminRole ? `
+                                <button type="button" onclick="event.stopPropagation(); deleteTask(${t.id});" class="text-slate-300 hover:text-rose-600 p-1 text-[11px] transition rounded hover:bg-rose-50" title="Xóa công việc (Chỉ Admin)">
+                                    <i class="fa-regular fa-trash-can"></i>
+                                </button>
+                            ` : ''}
+                        </div>
+
+                    </div>
+                </div>
+            `;
+        }
+
+        // --- Drag & Drop Kanban Logic ---
+        let draggedTaskId = null;
+        let draggedTaskStatus = null;
+        let draggedTaskProgress = 0;
+        let draggedTaskTitle = '';
+
+        function handleDragStart(e, id, status, progress, title) {
+            draggedTaskId = id;
+            draggedTaskStatus = status;
+            draggedTaskProgress = progress;
+            draggedTaskTitle = title;
+            e.dataTransfer.setData('text/plain', id);
+            e.currentTarget.classList.add('opacity-40');
+        }
+
+        function handleDragEnd(e) {
+            e.currentTarget.classList.remove('opacity-40');
+            document.querySelectorAll('.kanban-column-zone').forEach(z => {
+                z.classList.remove('kanban-drag-over');
+            });
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            const zone = e.currentTarget;
+            if (!zone.classList.contains('kanban-drag-over')) {
+                zone.classList.add('kanban-drag-over');
+            }
+        }
+
+        function handleDragLeave(e) {
+            e.currentTarget.classList.remove('kanban-drag-over');
+        }
+
+        async function handleDrop(e, targetStatus) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('kanban-drag-over');
+            if (!draggedTaskId || draggedTaskStatus === targetStatus) return;
+
+            const taskId = draggedTaskId;
+            const progress = draggedTaskProgress;
+            const title = draggedTaskTitle;
+
+            if (targetStatus === 'DONE') {
+                if (progress < 100) {
+                    showToast(`Chưa đạt 100% tiến độ (hiện tại: ${progress}%). Vui lòng hoàn thành tất cả các subtask trước khi chuyển sang DONE.`, 'error');
+                    return;
+                }
+                openProofModal(taskId, title, progress);
+                return;
+            }
+
+            if (targetStatus === 'REWORK') {
+                openReworkModal(taskId, title);
+                return;
+            }
+
+            await updateTaskStatus(taskId, targetStatus);
+        }
+
+        function toggleCardSubtasks(taskId, event) {
+            if (event) event.stopPropagation();
+            const list = document.getElementById(`subtaskList-${taskId}`);
+            const chevron = document.getElementById(`subtaskChevron-${taskId}`);
+            const text = document.getElementById(`subtaskToggleText-${taskId}`);
+            if (!list) return;
+            const isHidden = list.classList.contains('hidden');
+            if (isHidden) {
+                list.classList.remove('hidden');
+                if (chevron) chevron.className = 'fa-solid fa-angle-up text-[9px] transition-transform';
+                if (text) text.innerText = 'Thu gọn';
+            } else {
+                list.classList.add('hidden');
+                if (chevron) chevron.className = 'fa-solid fa-angle-down text-[9px] transition-transform';
+                if (text) text.innerText = 'Mở rộng';
+            }
+        }
+
+        // --- Load Smart Priority Ranking ---
+        async function loadSmartPriority() {
+            try {
+                const res = await authFetch(`${API_BASE}/tasks/smart-priority`);
+                const json = await res.json();
+                if (json.success && json.data) {
+                    renderSmartPriority(json.data);
+                }
+            } catch (err) { console.error('Error loading smart priority:', err); }
+        }
+
+        function renderSmartPriority(list) {
+            const container = document.getElementById('priorityTasksContainer');
+            if (!container) return;
+            if (list.length === 0) {
+                container.innerHTML = '<div class="text-center text-slate-400 py-10 bg-white rounded-xl border border-slate-200">Chưa có công việc nào</div>';
+                return;
+            }
+            container.innerHTML = list.map((item, idx) => {
+                const t = item.task;
+                return `
+                    <div class="bg-white p-3.5 rounded-xl border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 hover:border-slate-300 transition">
+                        <div class="flex items-start space-x-3">
+                            <span class="w-6 h-6 rounded-md bg-slate-100 text-slate-700 font-bold text-xs flex items-center justify-center shrink-0">
+                                #${idx + 1}
+                            </span>
+                            <div>
+                                <div class="flex items-center space-x-2">
+                                    <h4 class="font-semibold text-slate-900 text-xs">${escapeHtml(t.title)}</h4>
+                                    <span class="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${t.priority === 'URGENT' ? 'bg-rose-50 text-rose-700 border border-rose-200' : 'bg-slate-100 text-slate-600'}">
+                                        ${t.priority}
+                                    </span>
+                                    <span class="text-[10px] text-slate-400 font-medium">• ${escapeHtml(t.projectName || 'Chung')}</span>
+                                </div>
+                                <p class="text-[11px] text-slate-500 mt-0.5">${escapeHtml(item.scoreExplanation)}</p>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center space-x-3 self-end sm:self-center shrink-0">
+                            <div class="text-right">
+                                <span class="text-lg font-bold text-slate-900">${item.totalScore}</span>
+                                <span class="text-[10px] text-slate-400 block -mt-1">điểm ưu tiên</span>
+                            </div>
+                            ${currentUser && currentUser.role !== 'CLIENT' && t.status !== 'DONE' ? `
+                                <button onclick="openProofModal(${t.id}, '${escapeQuote(t.title)}', ${t.progress || 0})" class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-medium transition flex items-center space-x-1">
+                                    <i class="fa-solid fa-check text-[10px]"></i>
+                                    <span>Hoàn thành</span>
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // --- Task Handlers ---
+        async function handleCreateTask(e) {
+            e.preventDefault();
+            const title = document.getElementById('taskTitle').value.trim();
+            const description = document.getElementById('taskDescription').value.trim();
+            const projectId = document.getElementById('taskProjectSelect').value;
+            const priority = document.getElementById('taskPriority').value;
+            const dueDate = document.getElementById('taskDueDate').value;
+            const subtasksText = document.getElementById('taskSubtasks').value.trim();
+
+            const subtasks = subtasksText ? subtasksText.split('\n').map(s => s.trim()).filter(Boolean) : [];
+
+            try {
+                const res = await authFetch(`${API_BASE}/tasks`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        title, description, priority,
+                        projectId: projectId ? parseInt(projectId) : null,
+                        dueDate: dueDate || null,
+                        subtasks
+                    })
+                });
+                const json = await res.json();
+                if (res.ok && json.success) {
+                    showToast('Đã tạo công việc thành công');
+                    closeModal('taskModal');
+                    document.getElementById('taskTitle').value = '';
+                    document.getElementById('taskDescription').value = '';
+                    document.getElementById('taskSubtasks').value = '';
+                    loadAllData();
+                } else {
+                    showToast(json.message || 'Lỗi khi tạo công việc', 'error');
+                }
+            } catch (err) {
+                showToast('Lỗi kết nối máy chủ', 'error');
+            }
+        }
+
+        async function handleQuickCreate() {
+            const input = document.getElementById('quickTaskInput');
+            const projectSelect = document.getElementById('quickTaskProjectSelect');
+            const text = input ? input.value.trim() : '';
+            if (!text) {
+                showToast('Vui lòng nhập nội dung công việc', 'error');
+                return;
+            }
+            try {
+                const res = await authFetch(`${API_BASE}/tasks/quick-parse`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        text,
+                        projectId: projectSelect && projectSelect.value ? parseInt(projectSelect.value) : null
+                    })
+                });
+                const json = await res.json();
+                if (res.ok && json.success) {
+                    showToast(`Tạo thành công: "${json.data.title}"`);
+                    if (input) input.value = '';
+                    closeModal('taskModal');
+                    loadAllData();
+                } else {
+                    showToast(json.message || 'Không thể phân tích câu tự nhiên', 'error');
+                }
+            } catch (err) {
+                showToast('Lỗi khi gửi yêu cầu', 'error');
+            }
+        }
+
+        async function updateTaskStatus(id, status, note = null) {
+            try {
+                let url = `${API_BASE}/tasks/${id}/status?status=${status}`;
+                if (note) {
+                    url += `&note=${encodeURIComponent(note)}`;
+                }
+                const res = await authFetch(url, { method: 'PATCH' });
+                const json = await res.json();
+                if (res.ok && json.success) {
+                    const statusName = status === 'REWORK' ? 'CẦN SỬA LẠI' : (status === 'IN_PROGRESS' ? 'ĐANG LÀM' : (status === 'DONE' ? 'ĐÃ XONG' : 'CẦN LÀM'));
+                    showToast(`Đã chuyển trạng thái sang: ${statusName}`);
+                    loadAllData();
+                } else {
+                    showToast(json.message || 'Không thể cập nhật trạng thái', 'error');
+                }
+            } catch (err) { showToast('Lỗi kết nối máy chủ', 'error'); }
+        }
+
+        // --- Rework Handlers (Khi Tester hoặc Khách Hàng Báo Lỗi / Yêu Cầu Sửa Lại) ---
+        let activeReworkTaskId = null;
+        function openReworkModal(taskId, taskTitle) {
+            activeReworkTaskId = taskId;
+            const titleEl = document.getElementById('reworkTaskTitle');
+            if (titleEl) titleEl.innerText = taskTitle;
+            const noteInput = document.getElementById('reworkNoteInput');
+            if (noteInput) noteInput.value = '';
+            openModal('reworkModal');
+            setTimeout(() => { if (noteInput) noteInput.focus(); }, 120);
+        }
+
+        async function submitReworkRequest() {
+            if (!activeReworkTaskId) return;
+            const noteInput = document.getElementById('reworkNoteInput');
+            const note = noteInput ? noteInput.value.trim() : '';
+            if (!note) {
+                showToast('Vui lòng nhập mô tả lỗi hoặc lý do cần sửa lại', 'error');
+                return;
+            }
+            closeModal('reworkModal');
+            await updateTaskStatus(activeReworkTaskId, 'REWORK', note);
+            activeReworkTaskId = null;
+        }
+
+        // --- Proof of Completion Handlers ---
+        function openProofModal(taskId, taskTitle, progress) {
+            if (progress !== undefined && progress !== null && progress < 100) {
+                showToast(`Chưa thể hoàn thành: Công việc mới đạt ${progress}%. Bắt buộc phải hoàn thành 100% các subtask trước khi nộp minh chứng.`, 'error');
+                return;
+            }
+            document.getElementById('proofTaskId').value = taskId;
+            document.getElementById('proofTaskTitleDisplay').innerText = taskTitle;
+            document.getElementById('proofCompletionNote').value = '';
+            document.getElementById('proofUrlInput').value = '';
+            clearProofImage();
+            openModal('proofModal');
+        }
+
+        function handleProofImageSelected(e) {
+            const file = e.target.files && e.target.files[0];
+            if (!file) return;
+            if (!file.type.startsWith('image/')) {
+                showToast('Vui lòng chọn file hình ảnh (PNG, JPG, WebP...)', 'error');
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                setProofImage(evt.target.result);
+                showToast('Đã tải ảnh minh chứng!');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function setProofImage(dataUrl) {
+            const preview = document.getElementById('proofImagePreview');
+            const previewContainer = document.getElementById('proofImagePreviewContainer');
+            const prompt = document.getElementById('proofDropPrompt');
+            const urlInput = document.getElementById('proofUrlInput');
+
+            if (preview) preview.src = dataUrl;
+            if (previewContainer) previewContainer.classList.remove('hidden');
+            if (prompt) prompt.classList.add('hidden');
+            if (urlInput) urlInput.value = dataUrl;
+        }
+
+        function clearProofImage(e) {
+            if (e) e.stopPropagation();
+            const preview = document.getElementById('proofImagePreview');
+            const previewContainer = document.getElementById('proofImagePreviewContainer');
+            const prompt = document.getElementById('proofDropPrompt');
+            const fileInput = document.getElementById('proofImageFileInput');
+            const urlInput = document.getElementById('proofUrlInput');
+
+            if (preview) preview.src = '';
+            if (previewContainer) previewContainer.classList.add('hidden');
+            if (prompt) prompt.classList.remove('hidden');
+            if (fileInput) fileInput.value = '';
+            if (urlInput && urlInput.value.startsWith('data:image/')) {
+                urlInput.value = '';
+            }
+        }
+
+        function openProofImageLightbox(src) {
+            const img = document.getElementById('imageLightboxSrc');
+            if (img) img.src = src;
+            openModal('imageLightboxModal');
+        }
+
+        // Lắng nghe phím tắt Ctrl + V dán ảnh chụp màn hình từ clipboard
+        window.addEventListener('paste', function(e) {
+            const proofModal = document.getElementById('proofModal');
+            if (proofModal && !proofModal.classList.contains('hidden')) {
+                const items = (e.clipboardData || window.clipboardData).items;
+                if (!items) return;
+                for (let i = 0; i < items.length; i++) {
+                    const item = items[i];
+                    if (item.type && item.type.indexOf('image') !== -1) {
+                        const blob = item.getAsFile();
+                        const reader = new FileReader();
+                        reader.onload = function(event) {
+                            setProofImage(event.target.result);
+                            showToast('Đã dán ảnh minh chứng từ clipboard thành công!');
+                        };
+                        reader.readAsDataURL(blob);
+                        e.preventDefault();
+                        break;
+                    }
+                }
+            }
+        });
+
+        async function handleCompleteTaskWithProof(e) {
+            e.preventDefault();
+            const taskId = document.getElementById('proofTaskId').value;
+            const completionNote = document.getElementById('proofCompletionNote').value.trim();
+            const proofUrl = document.getElementById('proofUrlInput').value.trim();
+
+            if (!completionNote) {
+                showToast('Vui lòng nhập nội dung minh chứng hoàn thành', 'error');
+                return;
+            }
+
+            try {
+                const res = await authFetch(`${API_BASE}/tasks/${taskId}/complete`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        completionNote,
+                        proofUrl: proofUrl || null
+                    })
+                });
+                const json = await res.json();
+                if (res.ok && json.success) {
+                    showToast('Đã nộp minh chứng & hoàn thành công việc thành công!');
+                    closeModal('proofModal');
+                    loadAllData();
+                } else {
+                    showToast(json.message || 'Không thể nộp minh chứng', 'error');
+                }
+            } catch (err) {
+                showToast('Lỗi kết nối máy chủ', 'error');
+            }
+        }
+
+        async function deleteTask(id) {
+            if (!confirm('Bạn có chắc chắn muốn xóa công việc này?')) return;
+            try {
+                const res = await authFetch(`${API_BASE}/tasks/${id}`, { method: 'DELETE' });
+                if (res.ok) {
+                    showToast('Đã xóa công việc');
+                    loadAllData();
+                } else {
+                    const json = await res.json();
+                    showToast(json.message || 'Không có quyền xóa', 'error');
+                }
+            } catch (err) { showToast('Lỗi kết nối máy chủ', 'error'); }
+        }
+
+        // --- Task Assignment Handlers ---
+        function openAssignModal(taskId) {
+            document.getElementById('assignTaskId').value = taskId;
+            openModal('assignModal');
+        }
+
+        async function handleAssignTask(e) {
+            e.preventDefault();
+            const taskId = document.getElementById('assignTaskId').value;
+            const userId = document.getElementById('assignUserSelect').value;
+
+            try {
+                const res = await authFetch(`${API_BASE}/tasks/${taskId}/assign?userId=${userId}`, { method: 'PATCH' });
+                const json = await res.json();
+                if (res.ok && json.success) {
+                    showToast('Đã giao việc thành công');
+                    closeModal('assignModal');
+                    loadTasks();
+                } else {
+                    showToast(json.message || 'Không thể giao việc', 'error');
+                }
+            } catch (err) { showToast('Lỗi kết nối máy chủ', 'error'); }
+        }
+
+        async function selfAssignTask(taskId) {
+            try {
+                const res = await authFetch(`${API_BASE}/tasks/${taskId}/assign`, { method: 'PATCH' });
+                const json = await res.json();
+                if (res.ok && json.success) {
+                    showToast('Bạn đã nhận phụ trách công việc này');
+                    loadTasks();
+                } else {
+                    showToast(json.message || 'Không thể nhận việc', 'error');
+                }
+            } catch (err) { showToast('Lỗi kết nối máy chủ', 'error'); }
+        }
+
+        // --- Subtask Handlers ---
+        function openAddSubtaskModal(taskId) {
+            document.getElementById('subtaskParentTaskId').value = taskId;
+            document.getElementById('subtaskTitleInput').value = '';
+            openModal('subtaskModal');
+        }
+
+        async function handleAddSubtask(e) {
+            e.preventDefault();
+            const taskId = document.getElementById('subtaskParentTaskId').value;
+            const title = document.getElementById('subtaskTitleInput').value.trim();
+
+            try {
+                const res = await authFetch(`${API_BASE}/tasks/${taskId}/subtasks`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title })
+                });
+                const json = await res.json();
+                if (res.ok && json.success) {
+                    showToast('Đã thêm việc con');
+                    closeModal('subtaskModal');
+                    loadTasks();
+                } else {
+                    showToast(json.message || 'Lỗi thêm việc con', 'error');
+                }
+            } catch (err) { showToast('Lỗi kết nối máy chủ', 'error'); }
+        }
+
+        async function toggleSubtask(id) {
+            try {
+                const res = await authFetch(`${API_BASE}/subtasks/${id}/toggle`, { method: 'PATCH' });
+                const json = await res.json();
+                if (res.ok && json.success) {
+                    loadTasks();
+                    loadStats();
+                } else {
+                    showToast(json.message || 'Lỗi đổi trạng thái', 'error');
+                }
+            } catch (err) { showToast('Lỗi kết nối máy chủ', 'error'); }
+        }
+
+        async function deleteSubtask(id) {
+            try {
+                const res = await authFetch(`${API_BASE}/subtasks/${id}`, { method: 'DELETE' });
+                if (res.ok) {
+                    showToast('Đã xóa việc con');
+                    loadTasks();
+                    loadStats();
+                }
+            } catch (err) { showToast('Lỗi kết nối máy chủ', 'error'); }
+        }
+
+        // --- Project Handlers ---
+        async function handleCreateProject(e) {
+            e.preventDefault();
+            const name = document.getElementById('projectName').value.trim();
+            const description = document.getElementById('projectDesc').value.trim();
+
+            try {
+                const res = await authFetch(`${API_BASE}/projects`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, description })
+                });
+                const json = await res.json();
+                if (res.ok && json.success) {
+                    showToast('Đã tạo dự án thành công');
+                    closeModal('projectModal');
+                    document.getElementById('projectName').value = '';
+                    document.getElementById('projectDesc').value = '';
+                    loadAllData();
+                } else {
+                    showToast(json.message || 'Lỗi khi tạo dự án', 'error');
+                }
+            } catch (err) { showToast('Lỗi kết nối máy chủ', 'error'); }
+        }
+
+        async function deleteProject(id) {
+            if (!confirm('Bạn có chắc chắn muốn xóa dự án này?')) return;
+            try {
+                const res = await authFetch(`${API_BASE}/projects/${id}`, { method: 'DELETE' });
+                if (res.ok) {
+                    showToast('Đã xóa dự án thành công');
+                    loadAllData();
+                } else {
+                    const json = await res.json();
+                    showToast(json.message || 'Không thể xóa dự án', 'error');
+                }
+            } catch (err) { showToast('Lỗi kết nối máy chủ', 'error'); }
+        }
+
+        // --- Auth Modal & Form Handlers ---
+        function openAuthModal(tab = 'login') {
+            switchAuthTab(tab);
+            openModal('authModal');
+        }
+
+        function switchAuthTab(tab) {
+            const loginTab = document.getElementById('authLoginTab');
+            const regTab = document.getElementById('authRegisterTab');
+            const loginBtn = document.getElementById('authTabLoginBtn');
+            const regBtn = document.getElementById('authTabRegisterBtn');
+
+            if (tab === 'login') {
+                loginTab.classList.remove('hidden');
+                regTab.classList.add('hidden');
+                loginBtn.className = 'flex-1 py-1.5 rounded-md bg-slate-900 text-white shadow-sm transition';
+                regBtn.className = 'flex-1 py-1.5 rounded-md text-slate-600 hover:text-slate-900 transition';
+            } else {
+                loginTab.classList.add('hidden');
+                regTab.classList.remove('hidden');
+                regBtn.className = 'flex-1 py-1.5 rounded-md bg-slate-900 text-white shadow-sm transition';
+                loginBtn.className = 'flex-1 py-1.5 rounded-md text-slate-600 hover:text-slate-900 transition';
+            }
+        }
+
+        function togglePasswordVisibility(inputId, iconId) {
+            const input = document.getElementById(inputId);
+            const icon = document.getElementById(iconId);
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.className = 'fa-regular fa-eye-slash text-xs';
+            } else {
+                input.type = 'password';
+                icon.className = 'fa-regular fa-eye text-xs';
+            }
+        }
+
+        async function quickFillAndLogin(u, p) {
+            document.getElementById('loginUsername').value = u;
+            document.getElementById('loginPassword').value = p;
+            const success = await loginAs(u, p, true);
+            if (success) closeModal('authModal');
+        }
+
+        async function handleLoginForm(e) {
+            e.preventDefault();
+            const u = document.getElementById('loginUsername').value.trim();
+            const p = document.getElementById('loginPassword').value;
+            const btn = document.getElementById('btnSubmitLogin');
+            btn.disabled = true;
+            btn.innerText = 'Đang xác thực...';
+
+            try {
+                const success = await loginAs(u, p, true);
+                if (success) closeModal('authModal');
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Đăng Nhập';
+            }
+        }
+
+        async function handleRegisterForm(e) {
+            e.preventDefault();
+            const username = document.getElementById('regUsername').value.trim();
+            const password = document.getElementById('regPassword').value;
+            const fullName = document.getElementById('regFullName').value.trim();
+            const email = document.getElementById('regEmail').value.trim();
+            const role = document.getElementById('regRole').value;
+
+            const btn = document.getElementById('btnSubmitRegister');
+            btn.disabled = true;
+            btn.innerText = 'Đang tạo tài khoản...';
+
+            try {
+                const res = await fetch(`${API_BASE}/auth/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password, fullName, email, role })
+                });
+                const json = await res.json();
+                if (res.ok && json.success) {
+                    jwtToken = json.data.token;
+                    localStorage.setItem('taskflow_jwt', jwtToken);
+                    currentUser = {
+                        id: json.data.id,
+                        username: json.data.username,
+                        fullName: json.data.fullName,
+                        role: json.data.role,
+                        roleDisplayName: json.data.roleDisplayName
+                    };
+                    updateUserUI();
+                    closeModal('authModal');
+                    showToast(`Chào mừng ${currentUser.fullName}! Đăng ký thành công`);
+                    loadAllData();
+                } else {
+                    showToast(json.message || 'Đăng ký thất bại', 'error');
+                }
+            } catch (err) {
+                showToast('Lỗi kết nối máy chủ khi đăng ký', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Đăng Ký Tài Khoản';
+            }
+        }
+
+        function logout() {
+            jwtToken = null;
+            currentUser = null;
+            localStorage.removeItem('taskflow_jwt');
+            updateUserUI();
+            showToast('Bạn đã đăng xuất');
+            openAuthModal('login');
+        }
+
+        // --- Helpers ---
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/[&<>"']/g, m => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+            })[m]);
+        }
+
+        function formatDueDate(isoStr) {
+            if (!isoStr) return '';
+            try {
+                const d = new Date(isoStr);
+                const day = String(d.getDate()).padStart(2, '0');
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const hours = String(d.getHours()).padStart(2, '0');
+                const mins = String(d.getMinutes()).padStart(2, '0');
+                return `${day}/${month} ${hours}:${mins}`;
+            } catch (e) { return isoStr; }
+        }
+
+        function escapeQuote(str) {
+            if (!str) return '';
+            return String(str).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/taskdb}
+    driverClassName: org.postgresql.Driver
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
+  h2:
+    console:
+      enabled: false
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+
+jwt:
+  # Bắt buộc truyền JWT_SECRET qua biến môi trường trong Production, không có giá trị mặc định
+  secret: ${JWT_SECRET:}
+
+logging:
+  level:
+    com.portfolio.taskmanager: INFO
+    org.springframework.web: WARN
